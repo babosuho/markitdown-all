@@ -39,3 +39,5 @@ htmlcov/
 # Temporary uploads / outputs
 temp_uploads/
 output_test/
+cloudflared.exe
+
