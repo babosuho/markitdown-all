@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All-to-Markdown | 프로젝트 운영 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap');
+    body { font-family: 'Pretendard', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-slate-800 gap-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-500/30">
+            <i class="fa-solid fa-cube text-2xl"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">All-to-Markdown</h1>
+            <p class="text-xs text-slate-400">Project OS & Operations Dashboard</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          개발 및 구현 진행 중
+        </span>
+        <button onclick="location.reload()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-md border border-slate-700 transition">
+          <i class="fa-solid fa-rotate mr-1"></i> 새로고침
+        </button>
+      </div>
+    </header>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+      <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">스마트 라우터 지원 포맷</div>
+        <div class="text-2xl font-bold mt-1 text-indigo-400">7+ 종</div>
+        <div class="text-[11px] text-slate-400 mt-1">PDF, DOCX, PPTX, XLSX, HWPX, TXT, MD</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">배포 및 아키텍처</div>
+        <div class="text-2xl font-bold mt-1 text-emerald-400">Cloudflare Pages</div>
+        <div class="text-[11px] text-slate-400 mt-1">+ Python FastAPI 백엔드</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">옵시디언 / AI RAG 최적화</div>
+        <div class="text-2xl font-bold mt-1 text-sky-400">YAML Frontmatter</div>
+        <div class="text-[11px] text-slate-400 mt-1">마크다운 표 정제 및 메타데이터 주입</div>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 font-medium">보안 방어선 (Hardening)</div>
+        <div class="text-2xl font-bold mt-1 text-rose-400">XXE / Zip Slip 방어</div>
+        <div class="text-[11px] text-slate-400 mt-1">defusedxml + 메모리 스트리밍 파싱</div>
+      </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="bg-slate-800/40 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-sm">
+      <div class="flex border-b border-slate-800 bg-slate-800/60 px-4 pt-3 gap-2 overflow-x-auto">
+        <button onclick="switchTab('progress')" id="tab-progress" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-indigo-500 text-indigo-400">
+          <i class="fa-solid fa-list-check mr-1.5"></i> 진행 상황 (Progress)
+        </button>
+        <button onclick="switchTab('objectives')" id="tab-objectives" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-bullseye mr-1.5"></i> 목표 및 성공기준 (Objectives)
+        </button>
+        <button onclick="switchTab('lessons')" id="tab-lessons" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-shield-halved mr-1.5"></i> 실수 및 보안 기록 (Lessons Learned)
+        </button>
+        <button onclick="switchTab('context')" id="tab-context" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-sitemap mr-1.5"></i> 아키텍처 요약 (Context)
+        </button>
+      </div>
+
+      <div class="p-6">
+        <!-- Tab 1: Progress -->
+        <div id="content-progress" class="tab-content space-y-4">
+          <div class="bg-slate-800/80 rounded-xl p-5 border border-slate-700/60">
+            <h3 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> 최근 완료된 작업 (100% 달성)
+            </h3>
+            <ul class="space-y-2 text-sm text-slate-300">
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>전문가 5인(아키텍트, AI/RAG, 보안, UX, 바이브코딩 리드) 냉정 평가 및 개선안 도출</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>Git 저장소 초기화 (`git init`) 및 형상 관리 체계 구성</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>Project OS 문서 체계 (`CLAUDE.md`, `OBJECTIVES.md`, `PROGRESS.md`, `LESSONS_LEARNED.md`, `CONTEXT_SUMMARY.md`) 완비</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>백엔드 스마트 라우터(`SafeHWPXParser`, `MarkItDownParser`, `TextParser`, `MarkdownCleaner`) 구현 완료</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>FastAPI 엔드포인트 (`/api/convert`, `/api/convert/zip`, `/api/health`) 및 정적 SPA 서빙 완료</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>Cloudflare Pages 대응 반응형 프론트엔드 UI (`index.html`, `app.js`, `style.css`) 구현 완료</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                <span>자동화 검증 하네스 (`harness.ps1`) 및 단위 테스트 7종 전원 통과 (Pytest 100%)</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Tab 2: Objectives -->
+        <div id="content-objectives" class="tab-content hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-800/70 p-5 rounded-xl border border-slate-700">
+              <h4 class="font-bold text-indigo-400 text-sm mb-2">🎯 핵심 가치</h4>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                모든 이종 문서(PDF, Word, PPT, Excel, HWPX, Text)를 표준 Markdown으로 단일화하여 지식 베이스(옵시디언) 수납 및 AI 모델(RAG, 파인튜닝) 학습 비용을 최소화합니다.
+              </p>
+              <div class="space-y-1 text-xs text-slate-400">
+                <div>• 멀티포맷 스마트 라우터 지원</div>
+                <div>• 원클릭 클립보드 복사 & ZIP 일괄 다운로드</div>
+                <div>• 옵시디언 전용 YAML Frontmatter 자동 주입</div>
+              </div>
+            </div>
+            <div class="bg-slate-800/70 p-5 rounded-xl border border-slate-700">
+              <h4 class="font-bold text-emerald-400 text-sm mb-2">✅ 성공 기준 (Definition of Done)</h4>
+              <ul class="text-xs text-slate-300 space-y-1.5">
+                <li>• PDF 및 HWPX 공문서 서식이 마크다운 표/문단으로 깨짐 없이 추출될 것</li>
+                <li>• 30개 이상의 다수 파일 동시 업로드 시 안정적으로 리스트업될 것</li>
+                <li>• 원클릭 복사 시 포맷 손상 없이 클립보드에 주입될 것</li>
+                <li>• 파일 다운로드 시 UTF-8 인코딩으로 옵시디언에서 즉시 열릴 것</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Lessons Learned -->
+        <div id="content-lessons" class="tab-content hidden space-y-4">
+          <div class="bg-rose-950/30 border border-rose-900/40 p-4 rounded-xl">
+            <div class="flex items-center gap-2 text-rose-400 font-semibold text-sm mb-1">
+              <i class="fa-solid fa-triangle-exclamation"></i> HWPX 압축 및 XML 파싱 보안 방어 (XXE / Zip Slip)
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              HWPX 문서는 내부가 Zip+XML 구조입니다. 임의 파일 업로드 시 경로 순회(Zip Slip)를 원천 차단하기 위해 디스크에 파일을 쓰지 않고 메모리 스트림 상에서 파싱하며, 표준 ElementTree 대신 <code class="text-rose-300 bg-rose-950/60 px-1 py-0.5 rounded">defusedxml</code>을 강제 사용합니다.
+            </p>
+          </div>
+          <div class="bg-amber-950/30 border border-amber-900/40 p-4 rounded-xl">
+            <div class="flex items-center gap-2 text-amber-400 font-semibold text-sm mb-1">
+              <i class="fa-solid fa-code"></i> Windows 한글 인코딩 (CP949 vs UTF-8)
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Windows 환경에서는 인코딩을 명시하지 않으면 시스템 로캘(CP949)로 인한 텍스트 손상이 발생합니다. 모든 파일 I/O 및 파서에 <code class="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded">encoding='utf-8'</code> 및 <code class="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded">charset-normalizer</code> 자동 감지를 적용합니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- Tab 4: Context -->
+        <div id="content-context" class="tab-content hidden space-y-4">
+          <div class="bg-slate-800/70 p-5 rounded-xl border border-slate-700 font-mono text-xs text-slate-300 leading-relaxed">
+            <div class="text-indigo-400 font-bold mb-2">// 시스템 파이프라인 흐름</div>
+            <div>[사용자 드래그 앤 드롭]</div>
+            <div>  └─> [frontend/app.js] (FormData 전송)</div>
+            <div>        └─> [POST /api/convert]</div>
+            <div>              └─> [backend/parsers/smart_router.py]</div>
+            <div>                    ├─> [.pdf/.docx/.pptx/.xlsx] : markitdown_parser.py</div>
+            <div>                    ├─> [.hwpx]                 : hwpx_parser.py (defusedxml)</div>
+            <div>                    └─> [.txt/.csv/.json]       : text_parser.py</div>
+            <div>                          └─> [markdown_cleaner.py] (옵시디언 Frontmatter & 정제)</div>
+            <div>                                └─> [JSON 결과 반환 및 ZIP 압축 스트리밍]</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-8 text-center text-xs text-slate-500">
+      All-to-Markdown Project OS &copy; 2026. Powered by Microsoft MarkItDown, FastAPI, and Cloudflare Pages.
+    </footer>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-500', 'text-indigo-400');
+        btn.classList.add('border-transparent', 'text-slate-400');
+      });
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+      document.getElementById('tab-' + tabId).classList.add('border-indigo-500', 'text-indigo-400');
+      document.getElementById('tab-' + tabId).classList.remove('border-transparent', 'text-slate-400');
+      document.getElementById('content-' + tabId).classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

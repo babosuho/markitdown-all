@@ -12,11 +12,13 @@
 - [2026-09-24] FastAPI 엔드포인트(`backend/app.py`: `/api/convert`, `/api/convert/zip`, `/api/health`) 및 정적 파일 서빙 구현 완료
 - [2026-09-24] 프론트엔드 Cloudflare Pages 호환 SPA (`frontend/index.html`, `app.js`, `style.css`) 구현 완료
 - [2026-09-24] 오프라인 시각화 대시보드 (`dashboard.html`) 및 자동화 하네스 (`harness.ps1`) 구현 완료
-- [2026-09-24] 단위 테스트 7개 전원 통과 및 PDF/HWPX 실문서 스모크 테스트 통과
+- [2026-09-24] 프론트엔드 Cloudflare Pages 배포 완료 (https://markitdown-all.pages.dev)
+- [2026-09-24] 프로젝트 대시보드 배포 완료 (https://markitdown-all.pages.dev/dashboard.html)
+- [2026-09-24] 단위 테스트 8종 및 악성 3대 포맷(복합 엑셀, 한글 CP949 CSV, 워드) 전원 통과 완료
 
 ## 진행 중 / 다음 작업
-- [ ] 사용자 인앱 브라우저 및 로컬 서버 실행 검증
-- [ ] Cloudflare Pages 및 컨테이너 배포 가이드 안내
+- [ ] 24/7 클라우드 백엔드(Render / Hugging Face Spaces / Cloudflare Tunnel) 연동 안내 및 설정 지원
+
 
 ## 하네스 실행 이력
 > harness.ps1 실행 시 결과가 아래에 자동 기록됩니다.

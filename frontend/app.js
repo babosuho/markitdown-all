@@ -1,7 +1,8 @@
 // Frontend Application Logic
-const API_BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
-  ? window.location.origin
-  : (localStorage.getItem("API_BASE_URL") || window.location.origin);
+let API_BASE = localStorage.getItem("API_BASE_URL") || 
+  (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+    ? window.location.origin
+    : "http://localhost:8000");
 
 let convertedItems = [];
 let currentPreviewIndex = null;
@@ -111,6 +112,43 @@ function clearApiKey() {
   updateVisionUI();
   closeApiKeyModal();
   showToast("API Key가 삭제되었습니다.");
+}
+
+// Server Modal Controls
+const serverModal = document.getElementById("serverModal");
+const apiServerUrlInput = document.getElementById("apiServerUrlInput");
+
+function openServerModal() {
+  apiServerUrlInput.value = localStorage.getItem("API_BASE_URL") || API_BASE;
+  serverModal.classList.remove("hidden");
+  apiServerUrlInput.focus();
+}
+
+function closeServerModal() {
+  serverModal.classList.add("hidden");
+}
+
+function saveServerUrl() {
+  let url = apiServerUrlInput.value.trim();
+  if (url.endsWith("/")) url = url.slice(0, -1);
+  if (url) {
+    localStorage.setItem("API_BASE_URL", url);
+    API_BASE = url;
+    showToast("백엔드 서버 주소가 저장되었습니다.");
+  }
+  closeServerModal();
+  checkHealth();
+}
+
+function resetServerUrl() {
+  localStorage.removeItem("API_BASE_URL");
+  API_BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+    ? window.location.origin
+    : "http://localhost:8000";
+  apiServerUrlInput.value = API_BASE;
+  showToast("기본 호스트로 초기화되었습니다.");
+  closeServerModal();
+  checkHealth();
 }
 
 // Check Health on Load
