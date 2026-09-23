@@ -39,6 +39,7 @@ const visionIcon = document.getElementById("visionIcon");
 const apiKeySettingsBtn = document.getElementById("apiKeySettingsBtn");
 const apiKeyModal = document.getElementById("apiKeyModal");
 const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
+const apiKeyServerNotice = document.getElementById("apiKeyServerNotice");
 
 // Modal Elements
 const previewModal = document.getElementById("previewModal");
@@ -71,17 +72,22 @@ function updateVisionUI() {
     apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition";
     apiKeySettingsBtn.title = "Gemini API Key 설정 필요";
   }
-}
-updateVisionUI();
-    apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition";
-    apiKeySettingsBtn.title = "Gemini API Key 설정 필요";
+
+  if (apiKeyServerNotice) {
+    if (serverHasDefaultKey) {
+      apiKeyServerNotice.className = "p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-800 text-[11px] text-emerald-300";
+      apiKeyServerNotice.innerHTML = "✅ <b>서버에 Gemini API Key 탑재 완료!</b> 별도 키 입력 없이 모든 기기에서 비전 AI를 바로 사용하실 수 있습니다. (개인 키를 입력하면 개인 키가 우선 적용됩니다)";
+    } else {
+      apiKeyServerNotice.className = "p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400";
+      apiKeyServerNotice.innerHTML = "💡 <b>키 등록 안내:</b> 여기에 입력한 키는 현재 브라우저에 안전하게 보관됩니다. (또는 Railway 대시보드 Variables에 <code>GEMINI_API_KEY</code>를 등록하시면 모든 기기에서 자동 적용됩니다)";
+    }
   }
 }
 updateVisionUI();
 
 // Vision Mode Toggle Handler
 visionToggleBtn.addEventListener("click", () => {
-  const hasKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
+  const hasKey = Boolean(localStorage.getItem("GEMINI_API_KEY")) || serverHasDefaultKey;
   if (!isVisionModeActive && !hasKey) {
     openApiKeyModal();
     return;
@@ -116,16 +122,18 @@ function saveApiKey() {
   localStorage.setItem("VISION_MODE_ACTIVE", "true");
   updateVisionUI();
   closeApiKeyModal();
+  checkHealth();
   showToast("Gemini API Key가 안전하게 저장되었습니다.");
 }
 
 function clearApiKey() {
   localStorage.removeItem("GEMINI_API_KEY");
-  isVisionModeActive = false;
-  localStorage.setItem("VISION_MODE_ACTIVE", "false");
+  isVisionModeActive = serverHasDefaultKey;
+  localStorage.setItem("VISION_MODE_ACTIVE", isVisionModeActive ? "true" : "false");
   geminiApiKeyInput.value = "";
   updateVisionUI();
   closeApiKeyModal();
+  checkHealth();
   showToast("API Key가 삭제되었습니다.");
 }
 
@@ -166,25 +174,37 @@ function resetServerUrl() {
   checkHealth();
 }
 
-// Check Health on Load
+// Check Health on Load with Timeout
 async function checkHealth() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${API_BASE}/api/health`);
+    const res = await fetch(`${API_BASE}/api/health`, { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
-      backendStatus.innerHTML = `<span class="text-emerald-400">●</span> 백엔드 연결됨 (${API_BASE.includes("railway") ? "Railway Cloud" : "v" + data.version})`;
+      serverHasDefaultKey = Boolean(data.has_default_api_key);
+      const hasLocalKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
       
-      // If server has Gemini API Key, auto-activate Vision AI
-      if (data.has_default_api_key) {
-        serverHasDefaultKey = true;
-        isVisionModeActive = true;
-        updateVisionUI();
+      const serverType = API_BASE.includes("railway") ? "Railway Cloud" : "v" + data.version;
+      const keyStatusText = serverHasDefaultKey
+        ? '<span class="text-emerald-400 font-medium">비전 AI 준비됨</span>'
+        : (hasLocalKey ? '<span class="text-emerald-400 font-medium">개인 키 활성</span>' : '<span class="text-amber-400 font-medium">Gemini 키 등록 필요</span>');
+
+      backendStatus.innerHTML = `<span class="text-emerald-400">●</span> 백엔드 연결됨 (${serverType}) · ${keyStatusText}`;
+      
+      if (serverHasDefaultKey || hasLocalKey) {
+        if (localStorage.getItem("VISION_MODE_ACTIVE") !== "false") {
+          isVisionModeActive = true;
+        }
       }
+      updateVisionUI();
     } else {
       backendStatus.innerHTML = `<span class="text-amber-400">●</span> 백엔드 응답 오류 (${res.status})`;
     }
   } catch (err) {
-    backendStatus.innerHTML = `<span class="text-rose-400">●</span> 백엔드 오프라인 (${API_BASE})`;
+    clearTimeout(timeoutId);
+    backendStatus.innerHTML = `<span class="text-rose-400">●</span> 백엔드 연결 실패 (${API_BASE})`;
   }
 }
 checkHealth();
