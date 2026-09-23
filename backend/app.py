@@ -1,6 +1,7 @@
 """
 FastAPI Server for All-to-Markdown
 Provides endpoints for document conversion, ZIP packaging, and static UI serving.
+Supports Multimodal Gemini Vision AI for image-heavy slide decks and PDFs.
 """
 import io
 import os
@@ -8,7 +9,7 @@ import zipfile
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,8 +18,8 @@ from backend.parsers.smart_router import SmartRouter, ConversionResult
 
 app = FastAPI(
     title="All-to-Markdown API",
-    description="Intelligent multi-format document to Markdown converter for Obsidian and AI pipelines",
-    version="1.0.0"
+    description="Intelligent multi-format document to Markdown converter for Obsidian and AI pipelines with Vision AI",
+    version="1.1.0"
 )
 
 # Enable CORS for Cloudflare Pages and local frontend
@@ -34,21 +35,33 @@ router = SmartRouter()
 thread_pool = ThreadPoolExecutor(max_workers=4)
 
 
-def _process_single_file(file_bytes: bytes, filename: str, enable_frontmatter: bool, tags: Optional[List[str]]) -> ConversionResult:
+def _process_single_file(
+    file_bytes: bytes,
+    filename: str,
+    enable_frontmatter: bool,
+    tags: Optional[List[str]],
+    use_vision: bool = False,
+    api_key: Optional[str] = None,
+) -> ConversionResult:
     return router.convert_file(
         source=file_bytes,
         filename=filename,
         enable_frontmatter=enable_frontmatter,
         frontmatter_tags=tags,
+        use_vision=use_vision,
+        gemini_api_key=api_key,
     )
 
 
 @app.get("/api/health")
 def health_check():
+    has_env_key = bool(os.environ.get("GEMINI_API_KEY"))
     return {
         "status": "healthy",
         "service": "All-to-Markdown",
-        "version": "1.0.0",
+        "version": "1.1.0",
+        "vision_ai_available": True,
+        "has_default_api_key": has_env_key,
         "supported_extensions": list(router.OFFICE_EXTENSIONS | router.HWPX_EXTENSIONS | router.TEXT_EXTENSIONS),
     }
 
@@ -58,15 +71,19 @@ async def convert_documents(
     files: List[UploadFile] = File(...),
     enable_frontmatter: bool = Form(True),
     tags: Optional[str] = Form(None),
+    use_vision: bool = Form(False),
+    api_key: Optional[str] = Form(None),
+    x_gemini_api_key: Optional[str] = Header(None),
 ):
     """
     Convert single or multiple uploaded files to Markdown.
-    Returns JSON list of conversion results with full Markdown text.
+    Supports Vision AI when use_vision is True and Gemini API key is provided.
     """
     if not files:
         raise HTTPException(status_code=400, detail="업로드된 파일이 없습니다.")
 
     parsed_tags = [t.strip() for t in tags.split(",")] if tags else None
+    effective_api_key = api_key or x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
 
     # Read all files into memory
     file_payloads = []
@@ -76,7 +93,15 @@ async def convert_documents(
 
     # Convert concurrently
     futures = [
-        thread_pool.submit(_process_single_file, content, fname, enable_frontmatter, parsed_tags)
+        thread_pool.submit(
+            _process_single_file,
+            content,
+            fname,
+            enable_frontmatter,
+            parsed_tags,
+            use_vision,
+            effective_api_key,
+        )
         for content, fname in file_payloads
     ]
     results = [f.result() for f in futures]
@@ -116,6 +141,9 @@ async def convert_and_download_zip(
     files: List[UploadFile] = File(...),
     enable_frontmatter: bool = Form(True),
     tags: Optional[str] = Form(None),
+    use_vision: bool = Form(False),
+    api_key: Optional[str] = Form(None),
+    x_gemini_api_key: Optional[str] = Header(None),
 ):
     """
     Convert multiple files and directly download as a single ZIP archive.
@@ -124,6 +152,7 @@ async def convert_and_download_zip(
         raise HTTPException(status_code=400, detail="업로드된 파일이 없습니다.")
 
     parsed_tags = [t.strip() for t in tags.split(",")] if tags else None
+    effective_api_key = api_key or x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
 
     file_payloads = []
     for f in files:
@@ -131,7 +160,15 @@ async def convert_and_download_zip(
         file_payloads.append((content, f.filename or "document"))
 
     futures = [
-        thread_pool.submit(_process_single_file, content, fname, enable_frontmatter, parsed_tags)
+        thread_pool.submit(
+            _process_single_file,
+            content,
+            fname,
+            enable_frontmatter,
+            parsed_tags,
+            use_vision,
+            effective_api_key,
+        )
         for content, fname in file_payloads
     ]
     results = [f.result() for f in futures]

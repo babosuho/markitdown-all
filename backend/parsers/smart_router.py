@@ -1,6 +1,7 @@
 """
 Smart Document Router
 Intelligently routes files to the optimal parser based on extension and content.
+Supports Vision AI for image-heavy and slide PDFs.
 Post-processes output for Obsidian and AI RAG suitability.
 """
 import os
@@ -10,6 +11,7 @@ from typing import Union, BinaryIO, Optional, List
 from backend.parsers.markitdown_parser import MarkItDownParser
 from backend.parsers.hwpx_parser import SafeHWPXParser
 from backend.parsers.text_parser import TextParser
+from backend.parsers.vision_pdf_parser import VisionPdfParser
 from backend.parsers.markdown_cleaner import MarkdownCleaner
 
 
@@ -45,11 +47,12 @@ class SmartRouter:
         filename: Optional[str] = None,
         enable_frontmatter: bool = True,
         frontmatter_tags: Optional[List[str]] = None,
+        use_vision: bool = False,
+        gemini_api_key: Optional[str] = None,
     ) -> ConversionResult:
         """
         Main routing function to convert any document into Markdown.
         """
-        # Determine filename
         if not filename:
             if isinstance(source, str):
                 filename = os.path.basename(source)
@@ -66,17 +69,26 @@ class SmartRouter:
                 parser_name = "SafeHWPXParser"
                 raw_markdown = self.hwpx_parser.parse(source)
 
-            # 2. Office & Web Document Router (MarkItDown)
+            # 2. PDF with Vision AI Router
+            elif ext == ".pdf" and use_vision:
+                active_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+                if not active_key:
+                    raise ValueError("비전 AI 모드를 사용하려면 Gemini API 키가 필요합니다.")
+                parser_name = "Gemini Vision AI (Multimodal PDF)"
+                vision_parser = VisionPdfParser(api_key=active_key)
+                raw_markdown = vision_parser.parse(source)
+
+            # 3. Office & Web Document Router (MarkItDown)
             elif ext in self.OFFICE_EXTENSIONS:
                 parser_name = f"Microsoft MarkItDown ({ext.upper()})"
                 raw_markdown = self.markitdown_parser.parse(source, filename=filename)
 
-            # 3. Text & Structured Data Router
+            # 4. Text & Structured Data Router
             elif ext in self.TEXT_EXTENSIONS:
                 parser_name = f"TextNormalizer ({ext.upper()})"
                 raw_markdown = self.text_parser.parse(source, filename=filename)
 
-            # 4. Fallback / Unknown extension
+            # 5. Fallback / Unknown extension
             else:
                 try:
                     parser_name = "Microsoft MarkItDown (Auto-detect)"
@@ -85,7 +97,7 @@ class SmartRouter:
                     parser_name = "TextFallback"
                     raw_markdown = self.text_parser.parse(source, filename=filename)
 
-            # Post-processing: clean excessive blanks
+            # Post-processing: clean excessive blanks & slide noise
             cleaned_md = self.cleaner.clean(raw_markdown)
 
             # Post-processing: add Obsidian Frontmatter if enabled

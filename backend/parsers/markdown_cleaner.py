@@ -1,7 +1,8 @@
 """
 Markdown Cleaner & Formatter
 - Cleans up excessive newlines and whitespace
-- Optionally adds Obsidian-compatible YAML Frontmatter
+- Cleans up slide banner noise (e.g., vertical decorative characters)
+- Adds Obsidian-compatible YAML Frontmatter
 - Ensures consistent UTF-8 formatting
 """
 import re
@@ -12,12 +13,16 @@ from typing import Optional, List
 class MarkdownCleaner:
     @staticmethod
     def clean(markdown_text: str) -> str:
-        """Clean excessive whitespaces and empty lines."""
+        """Clean excessive whitespaces, slide banner artifacts, and empty lines."""
         if not markdown_text:
             return ""
 
         # Normalize line endings to \n
         text = markdown_text.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Strip vertical banner decoration noise (e.g. 신 \n 청 \n 안 \n 내)
+        text = re.sub(r"(?:^|\n)\s*신\s*\n\s*청\s*\n\s*안\s*\n\s*내\s*(?:\n|$)", "\n\n", text)
+        text = re.sub(r"(?:^|\n)\s*안\s*\n\s*내\s*\n\s*사\s*\n\s*항\s*(?:\n|$)", "\n\n", text)
 
         # Strip trailing whitespace on each line
         lines = [line.rstrip() for line in text.split("\n")]

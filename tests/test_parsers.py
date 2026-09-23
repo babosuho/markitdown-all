@@ -67,3 +67,11 @@ def test_smart_router_pdf_and_hwpx():
         assert res_hwpx.char_count > 500
         assert "SafeHWPXParser" in res_hwpx.parser_used
         assert "---" in res_hwpx.markdown
+
+
+def test_vision_pdf_parser_init():
+    from backend.parsers.vision_pdf_parser import VisionPdfParser
+    parser = VisionPdfParser(api_key="AIzaSy_FAKE_KEY_FOR_TEST")
+    assert parser.client is not None
+    assert parser.model == "gemini-2.5-flash"
+

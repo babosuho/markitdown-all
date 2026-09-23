@@ -6,6 +6,7 @@ const API_BASE = window.location.origin.includes("localhost") || window.location
 let convertedItems = [];
 let currentPreviewIndex = null;
 let currentFilesToZip = [];
+let isVisionModeActive = localStorage.getItem("VISION_MODE_ACTIVE") === "true";
 
 // DOM Elements
 const dropZone = document.getElementById("dropZone");
@@ -22,6 +23,14 @@ const backendStatus = document.getElementById("backendStatus");
 const toast = document.getElementById("toast");
 const toastMsg = document.getElementById("toastMsg");
 
+// Vision AI DOM Elements
+const visionToggleBtn = document.getElementById("visionToggleBtn");
+const visionToggleLabel = document.getElementById("visionToggleLabel");
+const visionIcon = document.getElementById("visionIcon");
+const apiKeySettingsBtn = document.getElementById("apiKeySettingsBtn");
+const apiKeyModal = document.getElementById("apiKeyModal");
+const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
+
 // Modal Elements
 const previewModal = document.getElementById("previewModal");
 const modalFilename = document.getElementById("modalFilename");
@@ -30,6 +39,79 @@ const modalRawView = document.getElementById("modalRawView");
 const modalCopyBtn = document.getElementById("modalCopyBtn");
 const previewTabRendered = document.getElementById("previewTabRendered");
 const previewTabRaw = document.getElementById("previewTabRaw");
+
+// Initialize Vision UI State
+function updateVisionUI() {
+  const hasKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
+  if (isVisionModeActive) {
+    visionToggleBtn.className = "px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 flex items-center gap-1.5 transition font-medium shadow-sm shadow-indigo-500/20";
+    visionToggleLabel.textContent = "비전 AI 모드: ON";
+    visionIcon.className = "fa-solid fa-wand-magic-sparkles text-amber-300 animate-pulse";
+  } else {
+    visionToggleBtn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 flex items-center gap-1.5 transition font-medium";
+    visionToggleLabel.textContent = "비전 AI(이미지/슬라이드): OFF";
+    visionIcon.className = "fa-solid fa-wand-magic-sparkles text-slate-500";
+  }
+
+  if (hasKey) {
+    apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 hover:bg-emerald-900/60 transition";
+    apiKeySettingsBtn.title = "Gemini API Key 등록됨";
+  } else {
+    apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition";
+    apiKeySettingsBtn.title = "Gemini API Key 설정 필요";
+  }
+}
+updateVisionUI();
+
+// Vision Mode Toggle Handler
+visionToggleBtn.addEventListener("click", () => {
+  const hasKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
+  if (!isVisionModeActive && !hasKey) {
+    openApiKeyModal();
+    return;
+  }
+  isVisionModeActive = !isVisionModeActive;
+  localStorage.setItem("VISION_MODE_ACTIVE", isVisionModeActive);
+  updateVisionUI();
+  showToast(isVisionModeActive ? "비전 AI 모드가 활성화되었습니다." : "비전 AI 모드가 비활성화되었습니다.");
+});
+
+// API Key Modal Controls
+apiKeySettingsBtn.addEventListener("click", openApiKeyModal);
+
+function openApiKeyModal() {
+  geminiApiKeyInput.value = localStorage.getItem("GEMINI_API_KEY") || "";
+  apiKeyModal.classList.remove("hidden");
+  geminiApiKeyInput.focus();
+}
+
+function closeApiKeyModal() {
+  apiKeyModal.classList.add("hidden");
+}
+
+function saveApiKey() {
+  const key = geminiApiKeyInput.value.trim();
+  if (!key) {
+    alert("API Key를 입력해 주세요.");
+    return;
+  }
+  localStorage.setItem("GEMINI_API_KEY", key);
+  isVisionModeActive = true;
+  localStorage.setItem("VISION_MODE_ACTIVE", "true");
+  updateVisionUI();
+  closeApiKeyModal();
+  showToast("Gemini API Key가 안전하게 저장되었습니다.");
+}
+
+function clearApiKey() {
+  localStorage.removeItem("GEMINI_API_KEY");
+  isVisionModeActive = false;
+  localStorage.setItem("VISION_MODE_ACTIVE", "false");
+  geminiApiKeyInput.value = "";
+  updateVisionUI();
+  closeApiKeyModal();
+  showToast("API Key가 삭제되었습니다.");
+}
 
 // Check Health on Load
 async function checkHealth() {
@@ -93,6 +175,13 @@ async function handleFileUpload(fileList) {
   formData.append("enable_frontmatter", frontmatterToggle.checked);
   formData.append("tags", frontmatterTags.value.trim());
 
+  // Attach Vision AI parameters
+  const apiKey = localStorage.getItem("GEMINI_API_KEY") || "";
+  formData.append("use_vision", isVisionModeActive);
+  if (apiKey) {
+    formData.append("api_key", apiKey);
+  }
+
   currentFilesToZip = files;
 
   try {
@@ -139,6 +228,7 @@ function renderFileList() {
   convertedItems.forEach((item, index) => {
     const ext = item.filename.split(".").pop().toLowerCase();
     const badgeColor = getBadgeColor(ext);
+    const isVision = item.parser_used.includes("Vision");
 
     const card = document.createElement("div");
     card.className = "bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all";
@@ -169,7 +259,10 @@ function renderFileList() {
             <span class="text-xs text-indigo-300 font-mono truncate">${escapeHtml(item.md_filename)}</span>
           </div>
           <div class="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
-            <span><i class="fa-solid fa-microchip text-slate-500 mr-1"></i>${escapeHtml(item.parser_used)}</span>
+            <span class="${isVision ? 'text-amber-300 font-semibold' : ''}">
+              <i class="fa-solid ${isVision ? 'fa-wand-magic-sparkles text-amber-400' : 'fa-microchip text-slate-500'} mr-1"></i>
+              ${escapeHtml(item.parser_used)}
+            </span>
             <span>•</span>
             <span>${item.char_count.toLocaleString()}자 (${item.line_count.toLocaleString()}줄)</span>
           </div>
@@ -254,12 +347,15 @@ downloadAllZipBtn.addEventListener("click", async () => {
   downloadAllZipBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> 압축 생성 중...`;
 
   try {
-    // If we have files in memory, request direct ZIP stream from backend
     if (currentFilesToZip.length > 0) {
       const formData = new FormData();
       currentFilesToZip.forEach(file => formData.append("files", file));
       formData.append("enable_frontmatter", frontmatterToggle.checked);
       formData.append("tags", frontmatterTags.value.trim());
+
+      const apiKey = localStorage.getItem("GEMINI_API_KEY") || "";
+      formData.append("use_vision", isVisionModeActive);
+      if (apiKey) formData.append("api_key", apiKey);
 
       const res = await fetch(`${API_BASE}/api/convert/zip`, {
         method: "POST",
@@ -303,7 +399,6 @@ function previewFile(index) {
   modalFilename.textContent = `${item.filename} (${item.char_count.toLocaleString()}자)`;
   modalRawView.textContent = item.markdown;
   
-  // Render Markdown with marked.js
   modalRenderedView.innerHTML = marked.parse(item.markdown);
 
   setPreviewTab("rendered");
@@ -339,9 +434,13 @@ modalCopyBtn.addEventListener("click", () => {
 previewModal.addEventListener("click", (e) => {
   if (e.target === previewModal) closePreviewModal();
 });
+apiKeyModal.addEventListener("click", (e) => {
+  if (e.target === apiKeyModal) closeApiKeyModal();
+});
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !previewModal.classList.contains("hidden")) {
+  if (e.key === "Escape") {
     closePreviewModal();
+    closeApiKeyModal();
   }
 });
 
