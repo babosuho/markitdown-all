@@ -1,13 +1,21 @@
 // Frontend Application Logic
-let API_BASE = localStorage.getItem("API_BASE_URL") || 
-  (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+const DEFAULT_CLOUD_API = "https://markitdown-all-production.up.railway.app";
+let storedApi = localStorage.getItem("API_BASE_URL");
+if (storedApi && storedApi.includes("localhost") && !window.location.origin.includes("localhost")) {
+  localStorage.removeItem("API_BASE_URL");
+  storedApi = null;
+}
+let API_BASE = storedApi || (
+  window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
     ? window.location.origin
-    : "http://localhost:8000");
+    : DEFAULT_CLOUD_API
+);
 
 let convertedItems = [];
 let currentPreviewIndex = null;
 let currentFilesToZip = [];
-let isVisionModeActive = localStorage.getItem("VISION_MODE_ACTIVE") === "true";
+let isVisionModeActive = localStorage.getItem("VISION_MODE_ACTIVE") !== "false"; // Default to true if not explicitly false
+let serverHasDefaultKey = false;
 
 // DOM Elements
 const dropZone = document.getElementById("dropZone");
@@ -43,21 +51,28 @@ const previewTabRaw = document.getElementById("previewTabRaw");
 
 // Initialize Vision UI State
 function updateVisionUI() {
-  const hasKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
+  const hasLocalKey = Boolean(localStorage.getItem("GEMINI_API_KEY"));
+  const hasKey = hasLocalKey || serverHasDefaultKey;
+
   if (isVisionModeActive) {
     visionToggleBtn.className = "px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 flex items-center gap-1.5 transition font-medium shadow-sm shadow-indigo-500/20";
-    visionToggleLabel.textContent = "비전 AI 모드: ON";
+    visionToggleLabel.textContent = serverHasDefaultKey ? "비전 AI(서버 기본 장착): ON" : "비전 AI 모드: ON";
     visionIcon.className = "fa-solid fa-wand-magic-sparkles text-amber-300 animate-pulse";
   } else {
     visionToggleBtn.className = "px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 flex items-center gap-1.5 transition font-medium";
-    visionToggleLabel.textContent = "비전 AI(이미지/슬라이드): OFF";
+    visionToggleLabel.textContent = "비전 AI: OFF";
     visionIcon.className = "fa-solid fa-wand-magic-sparkles text-slate-500";
   }
 
   if (hasKey) {
     apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 hover:bg-emerald-900/60 transition";
-    apiKeySettingsBtn.title = "Gemini API Key 등록됨";
+    apiKeySettingsBtn.title = serverHasDefaultKey ? "서버 기본 API Key 활성화됨" : "Gemini API Key 등록됨";
   } else {
+    apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition";
+    apiKeySettingsBtn.title = "Gemini API Key 설정 필요";
+  }
+}
+updateVisionUI();
     apiKeySettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition";
     apiKeySettingsBtn.title = "Gemini API Key 설정 필요";
   }
@@ -144,7 +159,7 @@ function resetServerUrl() {
   localStorage.removeItem("API_BASE_URL");
   API_BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
     ? window.location.origin
-    : "http://localhost:8000";
+    : DEFAULT_CLOUD_API;
   apiServerUrlInput.value = API_BASE;
   showToast("기본 호스트로 초기화되었습니다.");
   closeServerModal();
@@ -157,7 +172,14 @@ async function checkHealth() {
     const res = await fetch(`${API_BASE}/api/health`);
     if (res.ok) {
       const data = await res.json();
-      backendStatus.innerHTML = `<span class="text-emerald-400">●</span> 백엔드 정상 연결 (v${data.version})`;
+      backendStatus.innerHTML = `<span class="text-emerald-400">●</span> 백엔드 연결됨 (${API_BASE.includes("railway") ? "Railway Cloud" : "v" + data.version})`;
+      
+      // If server has Gemini API Key, auto-activate Vision AI
+      if (data.has_default_api_key) {
+        serverHasDefaultKey = true;
+        isVisionModeActive = true;
+        updateVisionUI();
+      }
     } else {
       backendStatus.innerHTML = `<span class="text-amber-400">●</span> 백엔드 응답 오류 (${res.status})`;
     }
