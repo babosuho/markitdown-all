@@ -24,6 +24,10 @@ class MarkdownCleaner:
         text = re.sub(r"(?:^|\n)\s*신\s*\n\s*청\s*\n\s*안\s*\n\s*내\s*(?:\n|$)", "\n\n", text)
         text = re.sub(r"(?:^|\n)\s*안\s*\n\s*내\s*\n\s*사\s*\n\s*항\s*(?:\n|$)", "\n\n", text)
 
+        # Clean Excel / Pandas table artifacts (NaN, Unnamed: X)
+        text = re.sub(r"\bNaN\b", "", text)
+        text = re.sub(r"Unnamed:\s*\d+", "", text)
+
         # Strip trailing whitespace on each line
         lines = [line.rstrip() for line in text.split("\n")]
         text = "\n".join(lines)
