@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All-to-Markdown | 스마트 문서 마크다운 변환기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation -->
+  <nav class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-file-lines text-lg"></i>
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">All-to-Markdown</span>
+          <span class="text-[10px] ml-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">Smart Router</span>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3 text-xs">
+        <div class="hidden sm:flex items-center gap-1.5 text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <i class="fa-solid fa-server text-emerald-400"></i>
+          <span id="backendStatus">연결 확인 중...</span>
+        </div>
+        <a href="dashboard.html" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-chart-line text-indigo-400"></i>
+          <span>프로젝트 대시보드</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero & Main Workspace -->
+  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
+
+    <!-- Hero Header -->
+    <div class="text-center max-w-2xl mx-auto pt-2 pb-4">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+        문서를 가장 깨끗한 <span class="text-indigo-400">마크다운</span>으로
+      </h1>
+      <p class="text-sm text-slate-400">
+        PDF, Word, PPT, Excel, <strong>HWPX(한글)</strong>까지 최적 라우터로 자동 변환하여<br class="hidden sm:inline"> 옵시디언(Obsidian) 보관함과 AI 모델 학습 데이터로 즉시 활용하세요.
+      </p>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/50 hover:bg-indigo-950/20 rounded-2xl p-8 sm:p-12 text-center transition-all cursor-pointer relative group">
+      <input type="file" id="fileInput" multiple class="hidden" accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.hwpx,.txt,.csv,.json,.xml,.md">
+      
+      <div class="flex flex-col items-center justify-center space-y-3">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-600/10 group-hover:bg-indigo-600/20 text-indigo-400 group-hover:scale-110 flex items-center justify-center transition-all duration-300">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl"></i>
+        </div>
+        <div class="space-y-1">
+          <div class="text-base font-semibold text-white">파일을 드래그하거나 클릭하여 업로드하세요</div>
+          <div class="text-xs text-slate-400">1개 또는 수십 개의 파일을 한꺼번에 넣을 수 있습니다</div>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-1.5 pt-2 text-[11px] text-slate-400">
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">PDF</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">DOCX</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">PPTX</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">XLSX</span>
+          <span class="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-semibold">HWPX</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">TXT/CSV/JSON</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options Bar -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+      <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+        <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300">
+          <input type="checkbox" id="frontmatterToggle" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-0">
+          <span>옵시디언 YAML Frontmatter 자동 추가</span>
+        </label>
+        <div class="flex items-center gap-1.5 text-slate-400">
+          <span>태그:</span>
+          <input type="text" id="frontmatterTags" value="document, all-to-markdown" class="bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <button id="downloadAllZipBtn" disabled class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-file-zipper"></i>
+          <span>전체 ZIP 다운로드</span>
+        </button>
+        <button id="clearAllBtn" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-trash-can mr-1"></i> 목록 비우기
+        </button>
+      </div>
+    </div>
+
+    <!-- Conversion Results Section -->
+    <div id="resultsSection" class="space-y-3 hidden">
+      <div class="flex items-center justify-between px-1">
+        <div class="text-sm font-bold text-white flex items-center gap-2">
+          <span>변환 목록</span>
+          <span id="resultCountBadge" class="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-indigo-400 border border-slate-700">0건</span>
+        </div>
+        <div id="loadingIndicator" class="hidden items-center gap-2 text-xs text-indigo-400">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>변환 중입니다...</span>
+        </div>
+      </div>
+
+      <!-- File Cards Container -->
+      <div id="fileListContainer" class="space-y-2.5">
+        <!-- Dynamic Cards Inserted Here -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Markdown Preview Modal -->
+  <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-file-lines text-indigo-400"></i>
+          <span id="modalFilename" class="font-bold text-sm text-white truncate max-w-md">파일명</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <!-- Toggle View -->
+          <div class="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
+            <button id="previewTabRendered" onclick="setPreviewTab('rendered')" class="px-3 py-1 rounded-md bg-indigo-600 text-white font-medium">렌더링</button>
+            <button id="previewTabRaw" onclick="setPreviewTab('raw')" class="px-3 py-1 rounded-md text-slate-400 hover:text-white font-medium">원본 텍스트</button>
+          </div>
+          <button id="modalCopyBtn" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-copy"></i>
+            <span>복사</span>
+          </button>
+          <button onclick="closePreviewModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto flex-1 font-mono text-xs">
+        <div id="modalRenderedView" class="prose prose-invert max-w-none font-sans text-sm"></div>
+        <pre id="modalRawView" class="hidden text-slate-300 whitespace-pre-wrap font-mono leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto"></pre>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-indigo-500/40 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-medium translate-y-16 opacity-0 transition-all duration-300 z-50">
+    <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toastMsg">복사되었습니다.</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+    All-to-Markdown &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Pipelines.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
