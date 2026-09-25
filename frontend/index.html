@@ -97,9 +97,21 @@
             <i class="fa-solid fa-key"></i>
           </button>
         </div>
+
+        <!-- Google Drive Integration Button -->
+        <div class="flex items-center gap-1.5 pl-2 border-l border-slate-700/80">
+          <button id="gdriveSettingsBtn" onclick="openGdriveModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition flex items-center gap-1.5" title="구글 드라이브 특정 폴더 저장 설정">
+            <i class="fa-brands fa-google-drive text-[#34A853]"></i>
+            <span id="gdriveBtnLabel" class="hidden md:inline">드라이브 설정</span>
+          </button>
+        </div>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <button id="uploadAllGdriveBtn" onclick="uploadAllToGdrive()" disabled class="px-3.5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm text-xs" title="변환된 마크다운을 구글 드라이브 폴더로 저장">
+          <i class="fa-brands fa-google-drive"></i>
+          <span id="uploadAllGdriveText">드라이브 전체 저장</span>
+        </button>
         <button id="downloadAllZipBtn" disabled class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-file-zipper"></i>
           <span>전체 ZIP 다운로드</span>
@@ -211,6 +223,82 @@
     </div>
   </div>
 
+  <!-- Google Drive Settings Modal -->
+  <div id="gdriveModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 animate-fade-in max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2 font-bold text-white text-base">
+          <i class="fa-brands fa-google-drive text-[#34A853] text-lg"></i>
+          <span>구글 드라이브 특정 폴더 저장 설정</span>
+        </div>
+        <button onclick="closeGdriveModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300">
+        <p>
+          문서가 변환되는 즉시 내 구글 드라이브(또는 옵시디언 동기화 폴더)로 자동 전송하거나 버튼 한 번으로 저장할 수 있습니다.
+        </p>
+
+        <!-- Auto Save Toggle -->
+        <label class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800 cursor-pointer select-none hover:border-slate-700 transition">
+          <input type="checkbox" id="gdriveAutoSaveToggle" class="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-0">
+          <div>
+            <div class="font-semibold text-slate-200">변환 완료 시 구글 드라이브로 자동 저장</div>
+            <div class="text-[11px] text-slate-400">파일 변환이 끝나면 지정 폴더로 즉시 마크다운 파일을 전송합니다.</div>
+          </div>
+        </label>
+
+        <!-- Webhook URL input -->
+        <div class="space-y-1.5 pt-1">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-300">
+            <span>Google Apps Script 웹훅 URL</span>
+            <span id="gdriveStatusBadge" class="text-[10px] text-slate-500 font-normal">미등록</span>
+          </div>
+          <input type="url" id="gdriveWebhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+
+        <!-- Guide & Code Accordion -->
+        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-emerald-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-question"></i>
+              <span>1분 완성: 나만의 웹훅 URL 만드는 법</span>
+            </span>
+            <button onclick="copyGasScript()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] flex items-center gap-1 transition border border-slate-700">
+              <i class="fa-solid fa-copy text-indigo-400"></i>
+              <span id="copyGasText">스크립트 복사</span>
+            </button>
+          </div>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-400 leading-relaxed">
+            <li><a href="https://script.new" target="_blank" class="text-indigo-400 underline font-medium hover:text-indigo-300">script.new (Google Apps Script)</a> 새 창 열기</li>
+            <li>기존 코드를 지우고 우측 <b>[스크립트 복사]</b>한 코드를 붙여넣기</li>
+            <li>코드 상단 <code class="text-amber-300">FOLDER_ID</code>에 저장할 구글드라이브 폴더 ID 입력 (비워두면 드라이브 최상단 저장)</li>
+            <li>우측 상단 <b>[배포] → [새 배포]</b> 클릭</li>
+            <li>유형: <b>웹 앱</b> 선택 → 액세스 권한: <b>모든 사용자(Anyone)</b> 선택 후 배포</li>
+            <li>발급된 <b>웹 앱 URL</b>을 복사하여 위 입력창에 넣고 [저장하기] 클릭!</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <button onclick="testGdriveConnection()" id="gdriveTestBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-paper-plane text-emerald-400"></i>
+          <span>연결 테스트</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="clearGdriveWebhook()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs transition">
+            삭제
+          </button>
+          <button onclick="saveGdriveWebhook()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm">
+            저장하기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Markdown Preview Modal -->
   <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
@@ -258,6 +346,6 @@
     All-to-Markdown &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Pipelines.
   </footer>
 
-  <script src="app.js?v=1.1.2"></script>
+  <script src="app.js?v=1.2.0"></script>
 </body>
 </html>

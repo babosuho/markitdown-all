@@ -54,3 +54,14 @@ def test_api_convert_zip():
         assert "test2.md" in names
         content1 = z.read("test1.md").decode("utf-8")
         assert "Document 1 Content" in content1
+
+
+def test_api_gdrive_validation():
+    # Invalid webhook URL should return 400
+    res = client.post("/api/gdrive/upload", json={
+        "webhook_url": "https://invalid-url.com",
+        "filename": "test.md",
+        "markdown": "# test"
+    })
+    assert res.status_code == 400
+    assert "Google Apps Script URL" in res.json()["detail"]

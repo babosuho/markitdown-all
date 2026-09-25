@@ -4,11 +4,14 @@ Provides endpoints for document conversion, ZIP packaging, and static UI serving
 Supports Multimodal Gemini Vision AI for image-heavy slide decks and PDFs.
 """
 import io
+import json
 import os
+import urllib.request
 import zipfile
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
+from pydantic import BaseModel
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -202,6 +205,39 @@ async def convert_and_download_zip(
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="all-converted-markdown.zip"'},
     )
+
+
+class GDriveUploadRequest(BaseModel):
+    webhook_url: str
+    filename: str
+    markdown: str
+
+
+@app.post("/api/gdrive/upload")
+def upload_to_gdrive(req: GDriveUploadRequest):
+    """
+    Proxy upload to Google Apps Script webhook to bypass browser CORS redirects.
+    """
+    if not req.webhook_url.startswith("https://script.google.com/"):
+        raise HTTPException(status_code=400, detail="올바른 Google Apps Script URL이 아닙니다.")
+
+    data = json.dumps({"filename": req.filename, "markdown": req.markdown}).encode("utf-8")
+    req_obj = urllib.request.Request(
+        req.webhook_url,
+        data=data,
+        headers={"Content-Type": "application/json", "User-Agent": "All-to-Markdown-Converter"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req_obj, timeout=30) as response:
+            res_body = response.read().decode("utf-8")
+            try:
+                parsed = json.loads(res_body)
+                return parsed
+            except Exception:
+                return {"status": "success", "raw": res_body}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"구글 드라이브 전송 실패: {str(e)}")
 
 
 # Mount frontend static directory if exists

@@ -41,6 +41,16 @@ const apiKeyModal = document.getElementById("apiKeyModal");
 const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
 const apiKeyServerNotice = document.getElementById("apiKeyServerNotice");
 
+// Google Drive DOM Elements
+const gdriveSettingsBtn = document.getElementById("gdriveSettingsBtn");
+const gdriveBtnLabel = document.getElementById("gdriveBtnLabel");
+const gdriveModal = document.getElementById("gdriveModal");
+const gdriveWebhookInput = document.getElementById("gdriveWebhookInput");
+const gdriveAutoSaveToggle = document.getElementById("gdriveAutoSaveToggle");
+const gdriveStatusBadge = document.getElementById("gdriveStatusBadge");
+const uploadAllGdriveBtn = document.getElementById("uploadAllGdriveBtn");
+const uploadAllGdriveText = document.getElementById("uploadAllGdriveText");
+
 // Modal Elements
 const previewModal = document.getElementById("previewModal");
 const modalFilename = document.getElementById("modalFilename");
@@ -174,6 +184,310 @@ function resetServerUrl() {
   checkHealth();
 }
 
+// ==========================================
+// Google Drive Webhook Integration
+// ==========================================
+const GAS_CODE_TEMPLATE = `// ==========================================
+// All-to-Markdown -> 구글 드라이브 자동 저장 스크립트
+// ==========================================
+
+// 1. 저장할 구글 드라이브 폴더 ID를 입력하세요.
+// (폴더 URL https://drive.google.com/drive/folders/1a2b3c... 에서 뒷부분)
+// 비워두면 드라이브 최상위(내 드라이브)에 저장됩니다.
+var FOLDER_ID = "";
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var filename = payload.filename || ("document_" + new Date().getTime() + ".md");
+    var markdown = payload.markdown || "";
+
+    var folder = (FOLDER_ID && FOLDER_ID.trim()) 
+      ? DriveApp.getFolderById(FOLDER_ID.trim()) 
+      : DriveApp.getRootFolder();
+
+    // 동일한 파일명이 이미 있으면 최신 내용으로 갱신
+    var existingFiles = folder.getFilesByName(filename);
+    var file;
+    if (existingFiles.hasNext()) {
+      file = existingFiles.next();
+      file.setContent(markdown);
+    } else {
+      file = folder.createFile(filename, markdown, MimeType.PLAIN_TEXT);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      filename: filename,
+      url: file.getUrl()
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "active",
+    service: "MarkItDown Google Drive Webhook"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+`;
+
+function updateGdriveUI() {
+  const webhookUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL") || "";
+  const isAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
+
+  if (gdriveAutoSaveToggle) {
+    gdriveAutoSaveToggle.checked = isAutoSave;
+  }
+
+  if (webhookUrl) {
+    if (gdriveSettingsBtn) {
+      gdriveSettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 hover:bg-emerald-900/60 transition flex items-center gap-1.5";
+      gdriveSettingsBtn.title = "구글 드라이브 연동 활성화됨";
+    }
+    if (gdriveBtnLabel) {
+      gdriveBtnLabel.textContent = "드라이브 연동됨";
+    }
+    if (gdriveStatusBadge) {
+      gdriveStatusBadge.className = "text-[10px] text-emerald-400 font-medium";
+      gdriveStatusBadge.textContent = "연동 활성";
+    }
+    if (uploadAllGdriveBtn && convertedItems.length > 0) {
+      uploadAllGdriveBtn.disabled = false;
+    }
+  } else {
+    if (gdriveSettingsBtn) {
+      gdriveSettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition flex items-center gap-1.5";
+      gdriveSettingsBtn.title = "구글 드라이브 특정 폴더 저장 설정";
+    }
+    if (gdriveBtnLabel) {
+      gdriveBtnLabel.textContent = "드라이브 설정";
+    }
+    if (gdriveStatusBadge) {
+      gdriveStatusBadge.className = "text-[10px] text-slate-500 font-normal";
+      gdriveStatusBadge.textContent = "미등록";
+    }
+    if (uploadAllGdriveBtn) {
+      uploadAllGdriveBtn.disabled = true;
+    }
+  }
+}
+updateGdriveUI();
+
+function openGdriveModal() {
+  gdriveWebhookInput.value = localStorage.getItem("GDRIVE_WEBHOOK_URL") || "";
+  gdriveAutoSaveToggle.checked = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
+  updateGdriveUI();
+  gdriveModal.classList.remove("hidden");
+  gdriveWebhookInput.focus();
+}
+
+function closeGdriveModal() {
+  gdriveModal.classList.add("hidden");
+}
+
+function saveGdriveWebhook() {
+  const url = gdriveWebhookInput.value.trim();
+  if (url && !url.startsWith("https://script.google.com/")) {
+    alert("올바른 Google Apps Script URL(https://script.google.com/macros/s/.../exec)을 입력해 주세요.");
+    return;
+  }
+
+  if (url) {
+    localStorage.setItem("GDRIVE_WEBHOOK_URL", url);
+  } else {
+    localStorage.removeItem("GDRIVE_WEBHOOK_URL");
+  }
+
+  localStorage.setItem("GDRIVE_AUTO_SAVE", gdriveAutoSaveToggle.checked ? "true" : "false");
+  updateGdriveUI();
+  closeGdriveModal();
+  showToast(url ? "구글 드라이브 연동 설정이 저장되었습니다." : "구글 드라이브 설정이 초기화되었습니다.");
+}
+
+function clearGdriveWebhook() {
+  localStorage.removeItem("GDRIVE_WEBHOOK_URL");
+  localStorage.removeItem("GDRIVE_AUTO_SAVE");
+  gdriveWebhookInput.value = "";
+  gdriveAutoSaveToggle.checked = false;
+  updateGdriveUI();
+  closeGdriveModal();
+  showToast("구글 드라이브 연동 설정이 삭제되었습니다.");
+}
+
+function copyGasScript() {
+  navigator.clipboard.writeText(GAS_CODE_TEMPLATE).then(() => {
+    const copyText = document.getElementById("copyGasText");
+    if (copyText) {
+      copyText.textContent = "복사 완료!";
+      setTimeout(() => { copyText.textContent = "스크립트 복사"; }, 2000);
+    }
+    showToast("구글 앱스 스크립트 코드가 복사되었습니다! script.new 에 붙여넣으세요.");
+  }).catch(() => {
+    prompt("아래 코드를 복사하세요:", GAS_CODE_TEMPLATE);
+  });
+}
+
+async function testGdriveConnection() {
+  const url = gdriveWebhookInput.value.trim();
+  if (!url || !url.startsWith("https://script.google.com/")) {
+    alert("테스트할 올바른 Google Apps Script URL을 먼저 입력해 주세요.");
+    return;
+  }
+
+  const testBtn = document.getElementById("gdriveTestBtn");
+  const originalHtml = testBtn.innerHTML;
+  testBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i><span>테스트 중...</span>';
+  testBtn.disabled = true;
+
+  try {
+    const testResult = await executeGdriveUpload(url, "markitdown_connection_test.md", "# MarkItDown 연결 테스트\\n\\n구글 드라이브 연동이 성공적으로 활성화되었습니다!\\n일시: " + new Date().toLocaleString());
+    if (testResult.success) {
+      alert("✅ 구글 드라이브 연결 성공!\\n\\n지정한 구글 드라이브 폴더에 테스트 파일(markitdown_connection_test.md)이 정상 생성되었습니다.");
+      saveGdriveWebhook();
+    } else {
+      alert("⚠️ 구글 드라이브 연결 실패: " + (testResult.error || "알 수 없는 오류"));
+    }
+  } catch (err) {
+    alert("⚠️ 테스트 중 오류 발생: " + err.message);
+  } finally {
+    testBtn.innerHTML = originalHtml;
+    testBtn.disabled = false;
+  }
+}
+
+async function executeGdriveUpload(webhookUrl, filename, markdown) {
+  // 1. Try via backend proxy first (handles redirects and avoids mobile CORS issues)
+  try {
+    const res = await fetch(`${API_BASE}/api/gdrive/upload`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        webhook_url: webhookUrl,
+        filename: filename,
+        markdown: markdown,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, url: data.url || "" };
+    }
+  } catch (backendErr) {
+    console.warn("Backend proxy upload failed, attempting direct fetch:", backendErr);
+  }
+
+  // 2. Direct browser fetch with mode: 'no-cors' as fallback
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ filename, markdown }),
+    });
+    return { success: true, url: "" };
+  } catch (fallbackErr) {
+    return { success: false, error: fallbackErr.message };
+  }
+}
+
+async function saveSingleToGdrive(index) {
+  const item = convertedItems[index];
+  if (!item || !item.markdown) return;
+
+  const webhookUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
+  if (!webhookUrl) {
+    openGdriveModal();
+    showToast("구글 드라이브 웹훅 URL을 먼저 설정해 주세요.");
+    return;
+  }
+
+  const btn = document.getElementById(`gdriveBtn_${index}`);
+  const originalHtml = btn ? btn.innerHTML : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i><span class="text-[11px]">저장 중...</span>';
+  }
+
+  try {
+    const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown);
+    if (res.success) {
+      if (btn) {
+        btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
+        btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+      }
+      showToast(`'${item.md_filename}' 구글 드라이브에 저장 완료!`);
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+      showToast(`저장 실패: ${res.error}`);
+    }
+  } catch (err) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+    showToast(`저장 오류: ${err.message}`);
+  }
+}
+
+async function uploadAllToGdrive() {
+  const webhookUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
+  if (!webhookUrl) {
+    openGdriveModal();
+    showToast("구글 드라이브 웹훅 URL을 먼저 설정해 주세요.");
+    return;
+  }
+
+  const validItems = convertedItems.filter(item => item.success && item.markdown);
+  if (validItems.length === 0) {
+    showToast("저장할 변환된 문서가 없습니다.");
+    return;
+  }
+
+  if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = true;
+  const originalText = uploadAllGdriveText ? uploadAllGdriveText.textContent : "드라이브 전체 저장";
+  
+  let successCount = 0;
+  for (let i = 0; i < validItems.length; i++) {
+    const item = validItems[i];
+    if (uploadAllGdriveText) {
+      uploadAllGdriveText.textContent = `저장 중 (${i + 1}/${validItems.length})...`;
+    }
+    
+    const originalIdx = convertedItems.indexOf(item);
+    const btn = document.getElementById(`gdriveBtn_${originalIdx}`);
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i><span class="text-[11px]">저장 중...</span>';
+    }
+
+    try {
+      const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown);
+      if (res.success) {
+        successCount++;
+        if (btn) {
+          btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
+          btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  if (uploadAllGdriveText) uploadAllGdriveText.textContent = originalText;
+  if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = false;
+  showToast(`총 ${successCount}개 파일이 구글 드라이브에 성공적으로 저장되었습니다!`);
+}
+
 // Check Health on Load with Timeout
 async function checkHealth() {
   const controller = new AbortController();
@@ -283,6 +597,15 @@ async function handleFileUpload(fileList) {
 
     renderFileList();
     showToast(`${data.success_count}개 파일 변환이 완료되었습니다.`);
+
+    // Auto-save to Google Drive if enabled and configured
+    const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
+    const gdriveUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
+    if (gdriveAutoSave && gdriveUrl && data.results.some(item => item.success)) {
+      setTimeout(() => {
+        uploadAllToGdrive();
+      }, 500);
+    }
   } catch (error) {
     alert(`변환 중 오류 발생: ${error.message}`);
   } finally {
@@ -299,8 +622,12 @@ function renderFileList() {
 
   if (convertedItems.length > 0) {
     downloadAllZipBtn.disabled = false;
+    if (uploadAllGdriveBtn && localStorage.getItem("GDRIVE_WEBHOOK_URL")) {
+      uploadAllGdriveBtn.disabled = false;
+    }
   } else {
     downloadAllZipBtn.disabled = true;
+    if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = true;
     resultsSection.classList.add("hidden");
     return;
   }
@@ -361,6 +688,10 @@ function renderFileList() {
         <button onclick="downloadMdFile(${index})" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1 transition">
           <i class="fa-solid fa-download"></i>
           <span>.md</span>
+        </button>
+        <button id="gdriveBtn_${index}" onclick="saveSingleToGdrive(${index})" class="px-2.5 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800/40 text-xs font-medium flex items-center gap-1 transition" title="구글 드라이브에 저장">
+          <i class="fa-brands fa-google-drive"></i>
+          <span id="gdriveBtnText_${index}">드라이브</span>
         </button>
       </div>
     `;
@@ -517,10 +848,16 @@ previewModal.addEventListener("click", (e) => {
 apiKeyModal.addEventListener("click", (e) => {
   if (e.target === apiKeyModal) closeApiKeyModal();
 });
+if (gdriveModal) {
+  gdriveModal.addEventListener("click", (e) => {
+    if (e.target === gdriveModal) closeGdriveModal();
+  });
+}
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePreviewModal();
     closeApiKeyModal();
+    closeGdriveModal();
   }
 });
 
