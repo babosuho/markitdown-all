@@ -51,6 +51,22 @@ const gdriveStatusBadge = document.getElementById("gdriveStatusBadge");
 const uploadAllGdriveBtn = document.getElementById("uploadAllGdriveBtn");
 const uploadAllGdriveText = document.getElementById("uploadAllGdriveText");
 
+// PWA & Token Quota DOM Elements
+const pwaInstallBtn = document.getElementById("pwaInstallBtn");
+const tokenQuotaBtn = document.getElementById("tokenQuotaBtn");
+const tokenQuotaBadge = document.getElementById("tokenQuotaBadge");
+const tokenModal = document.getElementById("tokenModal");
+const statTodayRequests = document.getElementById("statTodayRequests");
+const statTodayTokens = document.getElementById("statTodayTokens");
+
+// Workspace Tabs & URL Scraper DOM Elements
+const tabModeFiles = document.getElementById("tabModeFiles");
+const tabModeUrl = document.getElementById("tabModeUrl");
+const urlInputZone = document.getElementById("urlInputZone");
+const webUrlInput = document.getElementById("webUrlInput");
+const convertUrlBtn = document.getElementById("convertUrlBtn");
+const convertUrlBtnText = document.getElementById("convertUrlBtnText");
+
 // Modal Elements
 const previewModal = document.getElementById("previewModal");
 const modalFilename = document.getElementById("modalFilename");
@@ -191,10 +207,18 @@ const GAS_CODE_TEMPLATE = `// ==========================================
 // All-to-Markdown -> 구글 드라이브 자동 저장 스크립트
 // ==========================================
 
-// 1. 저장할 구글 드라이브 폴더 ID를 입력하세요.
-// (폴더 URL https://drive.google.com/drive/folders/1a2b3c... 에서 뒷부분)
+// 1. 저장할 구글 드라이브 폴더 주소 또는 폴더 ID를 입력하세요.
+// (폴더 전체 주소 https://drive.google.com/drive/folders/xxxx 또는 ID 문자열 아무거나 붙여넣어도 자동 인식됩니다)
 // 비워두면 드라이브 최상위(내 드라이브)에 저장됩니다.
 var FOLDER_ID = "";
+
+function extractFolderId(input) {
+  if (!input) return "";
+  var str = input.trim();
+  var match = str.match(/folders\/([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) return match[1];
+  return str.replace(/['"\\s]/g, "");
+}
 
 function doPost(e) {
   try {
@@ -202,9 +226,13 @@ function doPost(e) {
     var filename = payload.filename || ("document_" + new Date().getTime() + ".md");
     var markdown = payload.markdown || "";
 
-    var folder = (FOLDER_ID && FOLDER_ID.trim()) 
-      ? DriveApp.getFolderById(FOLDER_ID.trim()) 
-      : DriveApp.getRootFolder();
+    var cleanId = extractFolderId(FOLDER_ID);
+    var folder;
+    if (cleanId) {
+      folder = DriveApp.getFolderById(cleanId);
+    } else {
+      folder = DriveApp.getRootFolder();
+    }
 
     // 동일한 파일명이 이미 있으면 최신 내용으로 갱신
     var existingFiles = folder.getFilesByName(filename);
@@ -219,6 +247,7 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       filename: filename,
+      folder_name: folder.getName(),
       url: file.getUrl()
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -419,10 +448,14 @@ async function saveSingleToGdrive(index) {
     const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown);
     if (res.success) {
       if (btn) {
-        btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
-        btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+        if (res.url) {
+          btn.outerHTML = `<a href="${res.url}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition" title="구글 드라이브에서 열기"><i class="fa-solid fa-arrow-up-right-from-square text-emerald-300"></i><span class="text-[11px]">열기 ↗</span></a>`;
+        } else {
+          btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
+          btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+        }
       }
-      showToast(`'${item.md_filename}' 구글 드라이브에 저장 완료!`);
+      showToast(res.url ? `'${item.md_filename}' 구글 드라이브 저장 완료! [열기 ↗]로 확인하세요.` : `'${item.md_filename}' 구글 드라이브에 저장 완료!`);
     } else {
       if (btn) {
         btn.disabled = false;
@@ -474,8 +507,12 @@ async function uploadAllToGdrive() {
       if (res.success) {
         successCount++;
         if (btn) {
-          btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
-          btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+          if (res.url) {
+            btn.outerHTML = `<a href="${res.url}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition" title="구글 드라이브에서 열기"><i class="fa-solid fa-arrow-up-right-from-square text-emerald-300"></i><span class="text-[11px]">열기 ↗</span></a>`;
+          } else {
+            btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-900/80 text-emerald-200 border border-emerald-600 text-xs font-medium flex items-center gap-1 transition";
+            btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i><span class="text-[11px]">저장됨</span>';
+          }
         }
       }
     } catch (e) {
@@ -486,6 +523,196 @@ async function uploadAllToGdrive() {
   if (uploadAllGdriveText) uploadAllGdriveText.textContent = originalText;
   if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = false;
   showToast(`총 ${successCount}개 파일이 구글 드라이브에 성공적으로 저장되었습니다!`);
+}
+
+// ==========================================
+// Token Quota Tracker
+// ==========================================
+function getTodayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function loadTokenUsage() {
+  const today = getTodayDateString();
+  const storedDate = localStorage.getItem("GEMINI_USAGE_DATE");
+  if (storedDate !== today) {
+    localStorage.setItem("GEMINI_USAGE_DATE", today);
+    localStorage.setItem("GEMINI_USAGE_TOKENS", "0");
+    localStorage.setItem("GEMINI_USAGE_REQUESTS", "0");
+  }
+  updateTokenUI();
+}
+
+function recordTokenUsage(tokens, requests = 1) {
+  loadTokenUsage();
+  let currentTokens = parseInt(localStorage.getItem("GEMINI_USAGE_TOKENS") || "0", 10);
+  let currentReqs = parseInt(localStorage.getItem("GEMINI_USAGE_REQUESTS") || "0", 10);
+
+  currentTokens += Math.max(0, tokens);
+  currentReqs += requests;
+
+  localStorage.setItem("GEMINI_USAGE_TOKENS", String(currentTokens));
+  localStorage.setItem("GEMINI_USAGE_REQUESTS", String(currentReqs));
+  updateTokenUI();
+}
+
+function updateTokenUI() {
+  const tokens = parseInt(localStorage.getItem("GEMINI_USAGE_TOKENS") || "0", 10);
+  const requests = parseInt(localStorage.getItem("GEMINI_USAGE_REQUESTS") || "0", 10);
+
+  if (tokenQuotaBadge) {
+    tokenQuotaBadge.textContent = `토큰: ~${tokens.toLocaleString()} 사용`;
+  }
+  if (statTodayRequests) {
+    statTodayRequests.textContent = `${requests.toLocaleString()}회`;
+  }
+  if (statTodayTokens) {
+    statTodayTokens.textContent = `~${tokens.toLocaleString()}`;
+  }
+}
+
+function openTokenModal() {
+  loadTokenUsage();
+  if (tokenModal) tokenModal.classList.remove("hidden");
+}
+
+function closeTokenModal() {
+  if (tokenModal) tokenModal.classList.add("hidden");
+}
+
+function resetTokenCounter() {
+  localStorage.setItem("GEMINI_USAGE_DATE", getTodayDateString());
+  localStorage.setItem("GEMINI_USAGE_TOKENS", "0");
+  localStorage.setItem("GEMINI_USAGE_REQUESTS", "0");
+  updateTokenUI();
+  showToast("오늘의 토큰 사용량 카운터가 초기화되었습니다.");
+}
+loadTokenUsage();
+
+// ==========================================
+// PWA Service Worker & Install Prompt
+// ==========================================
+let deferredPrompt = null;
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(err => {
+      console.warn("ServiceWorker registration failed:", err);
+    });
+  });
+}
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (pwaInstallBtn) {
+    pwaInstallBtn.classList.remove("hidden");
+    pwaInstallBtn.classList.add("flex");
+  }
+});
+
+if (pwaInstallBtn) {
+  pwaInstallBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      pwaInstallBtn.classList.add("hidden");
+      pwaInstallBtn.classList.remove("flex");
+      showToast("All-to-Markdown 앱이 설치되었습니다!");
+    }
+    deferredPrompt = null;
+  });
+}
+
+// ==========================================
+// Workspace Mode Switcher (Files vs URL)
+// ==========================================
+let activeWorkspaceTab = "files";
+
+function switchWorkspaceTab(tab) {
+  activeWorkspaceTab = tab;
+  if (tab === "files") {
+    tabModeFiles.className = "px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition";
+    tabModeUrl.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition";
+    dropZone.classList.remove("hidden");
+    urlInputZone.classList.add("hidden");
+  } else {
+    tabModeFiles.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition";
+    tabModeUrl.className = "px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition";
+    dropZone.classList.add("hidden");
+    urlInputZone.classList.remove("hidden");
+    if (webUrlInput) webUrlInput.focus();
+  }
+}
+
+function setSampleUrl(url) {
+  if (webUrlInput) {
+    webUrlInput.value = url;
+    webUrlInput.focus();
+  }
+}
+
+// Webpage URL to Markdown Conversion (Firecrawl Style)
+async function handleUrlConvert() {
+  const url = (webUrlInput ? webUrlInput.value : "").trim();
+  if (!url) {
+    alert("변환할 웹페이지 URL을 입력해 주세요.");
+    if (webUrlInput) webUrlInput.focus();
+    return;
+  }
+
+  resultsSection.classList.remove("hidden");
+  loadingIndicator.classList.remove("hidden");
+  loadingIndicator.classList.add("flex");
+
+  if (convertUrlBtn) convertUrlBtn.disabled = true;
+  if (convertUrlBtnText) convertUrlBtnText.textContent = "추출 중...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/convert/url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: url,
+        enable_frontmatter: frontmatterToggle.checked,
+        tags: frontmatterTags.value.trim()
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `서버 응답 오류 (${res.status})`);
+    }
+
+    const item = await res.json();
+    convertedItems.unshift(item);
+    renderFileList();
+
+    if (item.success) {
+      showToast(`'${item.md_filename}' 웹페이지 마크다운 변환 완료!`);
+      // Record token usage (~3.5 chars per token estimate)
+      recordTokenUsage(Math.round(item.char_count / 3.5), 1);
+
+      // Auto-save to Google Drive if enabled
+      const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
+      const gdriveUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
+      if (gdriveAutoSave && gdriveUrl) {
+        saveSingleToGdrive(0);
+      }
+    } else {
+      alert(`웹페이지 변환 실패: ${item.error}`);
+    }
+
+    if (webUrlInput) webUrlInput.value = "";
+  } catch (err) {
+    alert(`웹페이지 변환 중 오류: ${err.message}`);
+  } finally {
+    loadingIndicator.classList.add("hidden");
+    loadingIndicator.classList.remove("flex");
+    if (convertUrlBtn) convertUrlBtn.disabled = false;
+    if (convertUrlBtnText) convertUrlBtnText.textContent = "마크다운 추출";
+  }
 }
 
 // Check Health on Load with Timeout
@@ -588,15 +815,20 @@ async function handleFileUpload(fileList) {
       throw new Error(`서버 응답 오류: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    
-    // Append or replace results
+    let totalChars = 0;
     data.results.forEach(item => {
       convertedItems.unshift(item);
+      if (item.success) totalChars += (item.char_count || 0);
     });
 
     renderFileList();
     showToast(`${data.success_count}개 파일 변환이 완료되었습니다.`);
+
+    // Record token usage
+    const estTokens = isVisionModeActive 
+      ? Math.round(data.results.length * 1500 + totalChars / 3.5)
+      : Math.round(totalChars / 3.5);
+    recordTokenUsage(estTokens, data.results.length);
 
     // Auto-save to Google Drive if enabled and configured
     const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
@@ -853,11 +1085,17 @@ if (gdriveModal) {
     if (e.target === gdriveModal) closeGdriveModal();
   });
 }
+if (tokenModal) {
+  tokenModal.addEventListener("click", (e) => {
+    if (e.target === tokenModal) closeTokenModal();
+  });
+}
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePreviewModal();
     closeApiKeyModal();
     closeGdriveModal();
+    closeTokenModal();
   }
 });
 

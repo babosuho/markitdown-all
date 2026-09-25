@@ -233,11 +233,100 @@ def upload_to_gdrive(req: GDriveUploadRequest):
             res_body = response.read().decode("utf-8")
             try:
                 parsed = json.loads(res_body)
+                if parsed.get("status") == "error":
+                    raise HTTPException(status_code=500, detail=parsed.get("message", "구글 드라이브 스크립트 실행 오류"))
                 return parsed
-            except Exception:
+            except json.JSONDecodeError:
                 return {"status": "success", "raw": res_body}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"구글 드라이브 전송 실패: {str(e)}")
+
+
+class UrlConvertRequest(BaseModel):
+    url: str
+    enable_frontmatter: bool = True
+    tags: Optional[str] = None
+
+
+@app.post("/api/convert/url")
+def convert_url_to_markdown(req: UrlConvertRequest):
+    """
+    Firecrawl-style web page to Markdown converter.
+    Extracts clean readable content from any webpage and formats it for Obsidian/AI pipelines.
+    """
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="변환할 웹페이지 URL을 입력해 주세요.")
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+
+    try:
+        from urllib.parse import urlparse
+        from backend.parsers.markdown_cleaner import MarkdownCleaner
+
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc or "webpage"
+
+        # Use MarkItDown convert_url
+        result = router.markitdown_parser.md_engine.convert_url(url)
+        raw_markdown = result.text_content or ""
+        page_title = getattr(result, "title", None) or domain
+
+        if not page_title or page_title.strip() == "":
+            path_slug = parsed_url.path.strip("/").replace("/", "_")
+            page_title = f"{domain}_{path_slug}" if path_slug else domain
+
+        # Clean title for safe filename
+        safe_title = "".join(c for c in page_title if c.isalnum() or c in (" ", "_", "-", ".", "(", ")")).strip()
+        if not safe_title:
+            safe_title = domain
+        safe_title = safe_title[:60]
+        md_filename = f"{safe_title}.md"
+
+        # Tags
+        parsed_tags = [t.strip() for t in req.tags.split(",")] if req.tags else ["web-article", "all-to-markdown"]
+
+        # Clean markdown & add Obsidian YAML frontmatter
+        cleaned_body = MarkdownCleaner.clean(raw_markdown)
+        if req.enable_frontmatter:
+            cleaned = MarkdownCleaner.add_frontmatter(
+                cleaned_body,
+                filename=md_filename,
+                tags=parsed_tags,
+                extra_meta={"source_url": url, "parser": "Firecrawl Web Reader (MarkItDown)"},
+            )
+        else:
+            cleaned = cleaned_body
+
+        line_count = len(cleaned.splitlines())
+        char_count = len(cleaned)
+
+        return {
+            "filename": f"URL: {url}",
+            "md_filename": md_filename,
+            "markdown": cleaned,
+            "char_count": char_count,
+            "line_count": line_count,
+            "parser_used": "Firecrawl Web Reader (MarkItDown)",
+            "success": True,
+            "error": None,
+            "source_url": url,
+        }
+    except Exception as e:
+        return {
+            "filename": f"URL: {url}",
+            "md_filename": "webpage_error.md",
+            "markdown": "",
+            "char_count": 0,
+            "line_count": 0,
+            "parser_used": "Firecrawl Web Reader",
+            "success": False,
+            "error": f"웹페이지 변환 실패: {str(e)}",
+            "source_url": url,
+        }
 
 
 # Mount frontend static directory if exists

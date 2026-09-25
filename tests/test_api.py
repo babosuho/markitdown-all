@@ -65,3 +65,17 @@ def test_api_gdrive_validation():
     })
     assert res.status_code == 400
     assert "Google Apps Script URL" in res.json()["detail"]
+
+
+def test_api_convert_url():
+    res = client.post("/api/convert/url", json={
+        "url": "https://example.com",
+        "enable_frontmatter": True,
+        "tags": "test,example"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert "Example Domain" in data["markdown"]
+    assert "source_url" in data["markdown"]
+    assert data["md_filename"].endswith(".md")

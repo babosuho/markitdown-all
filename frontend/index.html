@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>All-to-Markdown | 스마트 문서 마크다운 변환기</title>
+  <title>All-to-Markdown | 스마트 문서 & 웹 마크다운 변환기</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="All2MD">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,7 +33,19 @@
         </div>
       </div>
       
-      <div class="flex items-center gap-3 text-xs">
+      <div class="flex items-center gap-2 sm:gap-3 text-xs">
+        <!-- PWA Install Button -->
+        <button id="pwaInstallBtn" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm transition">
+          <i class="fa-solid fa-download text-xs"></i>
+          <span class="hidden sm:inline">앱 설치</span>
+        </button>
+
+        <!-- Token Quota Button -->
+        <button id="tokenQuotaBtn" onclick="openTokenModal()" class="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer" title="Gemini API 토큰 사용량 및 무료 플랜 한도">
+          <i class="fa-solid fa-bolt text-amber-400"></i>
+          <span id="tokenQuotaBadge">토큰: ~0 사용</span>
+        </button>
+
         <button onclick="openServerModal()" class="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer" title="백엔드 API 서버 주소 변경">
           <i class="fa-solid fa-server text-emerald-400"></i>
           <span id="backendStatus">연결 확인 중...</span>
@@ -32,7 +53,7 @@
         </button>
         <a href="dashboard.html" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
           <i class="fa-solid fa-chart-line text-indigo-400"></i>
-          <span>대시보드</span>
+          <span class="hidden sm:inline">대시보드</span>
         </a>
       </div>
     </div>
@@ -44,11 +65,54 @@
     <!-- Hero Header -->
     <div class="text-center max-w-2xl mx-auto pt-2 pb-4">
       <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
-        문서를 가장 깨끗한 <span class="text-indigo-400">마크다운</span>으로
+        문서와 웹페이지를 깨끗한 <span class="text-indigo-400">마크다운</span>으로
       </h1>
       <p class="text-sm text-slate-400">
-        PDF, Word, PPT, Excel, <strong>HWPX(한글)</strong>까지 최적 라우터로 자동 변환하여<br class="hidden sm:inline"> 옵시디언(Obsidian) 보관함과 AI 모델 학습 데이터로 즉시 활용하세요.
+        HWPX(한글), PDF, Word, Excel, <strong>웹 URL</strong>까지 최적 라우터로 자동 변환하여<br class="hidden sm:inline"> 옵시디언(Obsidian) 보관함과 AI 파이프라인으로 즉시 활용하세요.
       </p>
+    </div>
+
+    <!-- Workspace Mode Tabs -->
+    <div class="flex items-center gap-2 border-b border-slate-800/80 pb-2">
+      <button id="tabModeFiles" onclick="switchWorkspaceTab('files')" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition">
+        <i class="fa-solid fa-folder-open"></i>
+        <span>파일 문서 변환 (HWPX, PDF, Office)</span>
+      </button>
+      <button id="tabModeUrl" onclick="switchWorkspaceTab('url')" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition">
+        <i class="fa-solid fa-globe text-indigo-400"></i>
+        <span>웹페이지 URL 변환 (Firecrawl)</span>
+      </button>
+    </div>
+
+    <!-- Webpage URL Input Zone (Firecrawl style) -->
+    <div id="urlInputZone" class="hidden border-2 border-slate-800 bg-slate-900/60 rounded-2xl p-6 sm:p-10 space-y-4">
+      <div class="text-center max-w-xl mx-auto space-y-1">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold mb-1">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+          <span>Firecrawl 스타일 웹페이지 수집기</span>
+        </div>
+        <h2 class="text-lg font-bold text-white">웹페이지 URL을 옵시디언 마크다운으로 추출</h2>
+        <p class="text-xs text-slate-400">블로그, 뉴스 기사, 개발 문서 URL을 넣으면 광고와 노이즈를 걷어내고 본문만 정리합니다.</p>
+      </div>
+
+      <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-2 pt-2">
+        <div class="relative w-full">
+          <i class="fa-solid fa-link absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="url" id="webUrlInput" placeholder="https://example.com/article..." class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none font-mono">
+        </div>
+        <button id="convertUrlBtn" onclick="handleUrlConvert()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shrink-0 flex items-center justify-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          <span id="convertUrlBtnText">마크다운 추출</span>
+        </button>
+      </div>
+
+      <!-- Sample quick test URLs -->
+      <div class="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-1">
+        <span>빠른 테스트:</span>
+        <button onclick="setSampleUrl('https://ko.wikipedia.org/wiki/%EB%A7%88%ED%81%AC%EB%8B%A4%EC%9A%B4')" class="underline hover:text-indigo-400">위키백과 (마크다운)</button>
+        <span>•</span>
+        <button onclick="setSampleUrl('https://news.ycombinator.com')" class="underline hover:text-indigo-400">Hacker News</button>
+      </div>
     </div>
 
     <!-- Drop Zone -->
@@ -299,6 +363,73 @@
     </div>
   </div>
 
+  <!-- Gemini Token / Quota Modal -->
+  <div id="tokenModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2 font-bold text-white text-base">
+          <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+          <span>Gemini API 토큰 & 사용량 현황</span>
+        </div>
+        <button onclick="closeTokenModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 gap-3 text-center">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="text-[11px] text-slate-400 mb-1">오늘 변환 요청</div>
+          <div id="statTodayRequests" class="text-xl font-extrabold text-white">0회</div>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="text-[11px] text-slate-400 mb-1">오늘 누적 토큰 (추정)</div>
+          <div id="statTodayTokens" class="text-xl font-extrabold text-amber-400">~0</div>
+        </div>
+      </div>
+
+      <!-- Official Free Quota Limits -->
+      <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+        <div class="font-semibold text-slate-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-shield-halved text-indigo-400"></i>
+          <span>Gemini 2.5 Flash 무료 플랜 공식 한도</span>
+        </div>
+        <div class="space-y-1.5 text-[11px] text-slate-400">
+          <div class="flex justify-between py-0.5 border-b border-slate-800/60">
+            <span>분당 요청 한도 (RPM)</span>
+            <span class="font-mono text-slate-200">최대 15 RPM</span>
+          </div>
+          <div class="flex justify-between py-0.5 border-b border-slate-800/60">
+            <span>하루 요청 한도 (RPD)</span>
+            <span class="font-mono text-emerald-400 font-semibold">최대 1,500 RPD</span>
+          </div>
+          <div class="flex justify-between py-0.5">
+            <span>분당 토큰 한도 (TPM)</span>
+            <span class="font-mono text-slate-200">최대 1,000,000 TPM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google AI Studio Link -->
+      <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-900/60 space-y-1 text-xs">
+        <div class="text-slate-300">구글의 실시간 잔여 쿼터 및 청구 대시보드는 Google AI Studio에서 직접 확인하실 수 있습니다:</div>
+        <a href="https://aistudio.google.com/app/plan_information" target="_blank" class="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-semibold mt-1">
+          <span>Google AI Studio 사용량 대시보드 바로가기</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+        </a>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+        <button onclick="resetTokenCounter()" class="text-xs text-slate-500 hover:text-rose-400 transition">
+          오늘 카운터 초기화
+        </button>
+        <button onclick="closeTokenModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Markdown Preview Modal -->
   <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
@@ -346,6 +477,6 @@
     All-to-Markdown &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Pipelines.
   </footer>
 
-  <script src="app.js?v=1.2.0"></script>
+  <script src="app.js?v=1.3.0"></script>
 </body>
 </html>
