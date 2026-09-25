@@ -112,3 +112,48 @@ def test_api_convert_url_crawl_subpages(monkeypatch):
     assert "https://mysite.com/contact" in urls
     assert not any("external.com" in u for u in urls)
 
+
+def test_api_crawl_discover(monkeypatch):
+    sample_html = '''
+    <html>
+      <head><title>My Docs Home</title></head>
+      <body>
+        <a href="/guide">Getting Started Guide</a>
+        <a href="/faq">FAQ & Troubleshooting</a>
+      </body>
+    </html>
+    '''
+    class MockResponse:
+        def read(self):
+            return sample_html.encode("utf-8")
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=12: MockResponse())
+
+    res = client.post("/api/crawl/discover", json={"url": "https://docs.mysite.com", "max_pages": 10})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 3
+    assert data["pages"][0]["is_root"] is True
+    assert "My Docs Home" in data["pages"][0]["title"]
+    assert any("Getting Started Guide" in p["title"] for p in data["pages"])
+    assert any("/faq" in p["url"] for p in data["pages"])
+
+
+def test_api_convert_url_batch():
+    res = client.post("/api/convert/url-batch", json={
+        "urls": ["https://example.com"],
+        "enable_frontmatter": True,
+        "tags": "batch,test"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 1
+    assert data["success_count"] == 1
+    assert "Example Domain" in data["results"][0]["markdown"]
+
+

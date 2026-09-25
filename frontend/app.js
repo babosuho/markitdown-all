@@ -68,6 +68,18 @@ const webUrlInput = document.getElementById("webUrlInput");
 const crawlSubpagesToggle = document.getElementById("crawlSubpagesToggle");
 const convertUrlBtn = document.getElementById("convertUrlBtn");
 const convertUrlBtnText = document.getElementById("convertUrlBtnText");
+const discoverSubpagesBtn = document.getElementById("discoverSubpagesBtn");
+const discoverSubpagesBtnText = document.getElementById("discoverSubpagesBtnText");
+
+// Subpage Selection Modal Elements
+const subpageSelectModal = document.getElementById("subpageSelectModal");
+const subpageCountBadge = document.getElementById("subpageCountBadge");
+const subpageBaseDomainText = document.getElementById("subpageBaseDomainText");
+const subpageFilterInput = document.getElementById("subpageFilterInput");
+const subpageListContainer = document.getElementById("subpageListContainer");
+const subpageSelectedCount = document.getElementById("subpageSelectedCount");
+const convertSelectedSubpagesBtn = document.getElementById("convertSelectedSubpagesBtn");
+const convertSelectedSubpagesBtnText = document.getElementById("convertSelectedSubpagesBtnText");
 
 // Modal Elements
 const previewModal = document.getElementById("previewModal");
@@ -217,7 +229,7 @@ var FOLDER_ID = "";
 function extractFolderId(input) {
   if (!input) return "";
   var str = input.trim();
-  var match = str.match(/folders\/([a-zA-Z0-9_-]+)/);
+  var match = str.match(/folders\\/([a-zA-Z0-9_-]+)/);
   if (match && match[1]) return match[1];
   return str.replace(/['"\\s]/g, "");
 }
@@ -231,7 +243,14 @@ function doPost(e) {
     var cleanId = extractFolderId(FOLDER_ID);
     var folder;
     if (cleanId) {
-      folder = DriveApp.getFolderById(cleanId);
+      try {
+        folder = DriveApp.getFolderById(cleanId);
+      } catch (errFolder) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "지정한 폴더 ID(" + cleanId + ")를 찾을 수 없거나 접근 권한이 없습니다: " + errFolder.toString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
     } else {
       folder = DriveApp.getRootFolder();
     }
@@ -250,6 +269,8 @@ function doPost(e) {
       status: "success",
       filename: filename,
       folder_name: folder.getName(),
+      folder_id: folder.getId(),
+      folder_url: folder.getUrl(),
       url: file.getUrl()
     })).setMimeType(ContentService.MimeType.JSON);
 
@@ -269,6 +290,26 @@ function doGet(e) {
 }
 `;
 
+function updateGdriveFolderBanner() {
+  const folderBox = document.getElementById("gdriveFolderInfoBox");
+  const folderNameEl = document.getElementById("gdriveDetectedFolderName");
+  const folderIdEl = document.getElementById("gdriveDetectedFolderId");
+  const folderLinkEl = document.getElementById("gdriveFolderLink");
+
+  const storedFolder = localStorage.getItem("GDRIVE_FOLDER_NAME");
+  const storedFolderId = localStorage.getItem("GDRIVE_FOLDER_ID") || "root";
+  const storedFolderUrl = localStorage.getItem("GDRIVE_FOLDER_URL") || "https://drive.google.com";
+
+  if (storedFolder && folderBox) {
+    folderBox.classList.remove("hidden");
+    if (folderNameEl) folderNameEl.textContent = storedFolder;
+    if (folderIdEl) folderIdEl.textContent = `ID: ${storedFolderId}`;
+    if (folderLinkEl) folderLinkEl.href = storedFolderUrl;
+  } else if (folderBox) {
+    folderBox.classList.add("hidden");
+  }
+}
+
 function updateGdriveUI() {
   const webhookUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL") || "";
   const isAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
@@ -277,13 +318,16 @@ function updateGdriveUI() {
     gdriveAutoSaveToggle.checked = isAutoSave;
   }
 
+  updateGdriveFolderBanner();
+
   if (webhookUrl) {
     if (gdriveSettingsBtn) {
       gdriveSettingsBtn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 hover:bg-emerald-900/60 transition flex items-center gap-1.5";
       gdriveSettingsBtn.title = "구글 드라이브 연동 활성화됨";
     }
     if (gdriveBtnLabel) {
-      gdriveBtnLabel.textContent = "드라이브 연동됨";
+      const storedFolder = localStorage.getItem("GDRIVE_FOLDER_NAME");
+      gdriveBtnLabel.textContent = storedFolder ? `드라이브: ${storedFolder}` : "드라이브 연동됨";
     }
     if (gdriveStatusBadge) {
       gdriveStatusBadge.className = "text-[10px] text-emerald-400 font-medium";
@@ -345,6 +389,9 @@ function saveGdriveWebhook() {
 function clearGdriveWebhook() {
   localStorage.removeItem("GDRIVE_WEBHOOK_URL");
   localStorage.removeItem("GDRIVE_AUTO_SAVE");
+  localStorage.removeItem("GDRIVE_FOLDER_NAME");
+  localStorage.removeItem("GDRIVE_FOLDER_ID");
+  localStorage.removeItem("GDRIVE_FOLDER_URL");
   gdriveWebhookInput.value = "";
   gdriveAutoSaveToggle.checked = false;
   updateGdriveUI();
@@ -380,10 +427,29 @@ async function testGdriveConnection() {
   try {
     const testResult = await executeGdriveUpload(url, "markitdown_connection_test.md", "# MarkItDown 연결 테스트\\n\\n구글 드라이브 연동이 성공적으로 활성화되었습니다!\\n일시: " + new Date().toLocaleString());
     if (testResult.success) {
-      alert("✅ 구글 드라이브 연결 성공!\\n\\n지정한 구글 드라이브 폴더에 테스트 파일(markitdown_connection_test.md)이 정상 생성되었습니다.");
+      const folderName = testResult.folder_name || "내 드라이브";
+      const folderUrl = testResult.folder_url || (testResult.folder_id ? `https://drive.google.com/drive/folders/${testResult.folder_id}` : "https://drive.google.com");
+      const fileUrl = testResult.url || "";
+
+      localStorage.setItem("GDRIVE_FOLDER_NAME", folderName);
+      if (testResult.folder_id) localStorage.setItem("GDRIVE_FOLDER_ID", testResult.folder_id);
+      if (folderUrl) localStorage.setItem("GDRIVE_FOLDER_URL", folderUrl);
+
+      updateGdriveFolderBanner();
+
+      const openTarget = folderUrl || fileUrl;
+      const msg = `✅ 구글 드라이브 연결 성공!\\n\\n` +
+                  `📁 실제 저장 폴더: [ ${folderName} ]\\n` +
+                  `📄 생성 파일: markitdown_connection_test.md\\n\\n` +
+                  (openTarget ? `확인을 누르면 구글 드라이브 해당 위치가 새 창으로 열립니다.` : ``);
+
+      alert(msg);
+      if (openTarget) {
+        window.open(openTarget, "_blank");
+      }
       saveGdriveWebhook();
     } else {
-      alert("⚠️ 구글 드라이브 연결 실패: " + (testResult.error || "알 수 없는 오류"));
+      alert("⚠️ 구글 드라이브 연결 실패:\\n\\n" + (testResult.error || "알 수 없는 오류가 발생했습니다.\\n\\n스크립트 FOLDER_ID가 올바른지, 배포 시 '액세스 권한: 모든 사용자(Anyone)'로 설정되었는지 확인해 주세요."));
     }
   } catch (err) {
     alert("⚠️ 테스트 중 오류 발생: " + err.message);
@@ -394,7 +460,6 @@ async function testGdriveConnection() {
 }
 
 async function executeGdriveUpload(webhookUrl, filename, markdown) {
-  // 1. Try via backend proxy first (handles redirects and avoids mobile CORS issues)
   try {
     const res = await fetch(`${API_BASE}/api/gdrive/upload`, {
       method: "POST",
@@ -407,23 +472,22 @@ async function executeGdriveUpload(webhookUrl, filename, markdown) {
     });
     if (res.ok) {
       const data = await res.json();
-      return { success: true, url: data.url || "" };
+      if (data.status === "error") {
+        return { success: false, error: data.message || "구글 드라이브 스크립트 실행 오류" };
+      }
+      return {
+        success: true,
+        url: data.url || "",
+        folder_name: data.folder_name || "",
+        folder_id: data.folder_id || "",
+        folder_url: data.folder_url || ""
+      };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.detail || `서버 프록시 전송 실패 (${res.status})` };
     }
   } catch (backendErr) {
-    console.warn("Backend proxy upload failed, attempting direct fetch:", backendErr);
-  }
-
-  // 2. Direct browser fetch with mode: 'no-cors' as fallback
-  try {
-    await fetch(webhookUrl, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ filename, markdown }),
-    });
-    return { success: true, url: "" };
-  } catch (fallbackErr) {
-    return { success: false, error: fallbackErr.message };
+    return { success: false, error: `네트워크 또는 서버 통신 오류: ${backendErr.message}` };
   }
 }
 
@@ -741,7 +805,207 @@ async function handleUrlConvert() {
     loadingIndicator.classList.add("hidden");
     loadingIndicator.classList.remove("flex");
     if (convertUrlBtn) convertUrlBtn.disabled = false;
-    if (convertUrlBtnText) convertUrlBtnText.textContent = "마크다운 추출";
+    if (convertUrlBtnText) convertUrlBtnText.textContent = "페이지 변환";
+  }
+}
+
+// ==========================================
+// Subpage Discovery & Selective Crawling
+// ==========================================
+let discoveredSubpages = [];
+
+async function handleDiscoverSubpages() {
+  const url = (webUrlInput ? webUrlInput.value : "").trim();
+  if (!url) {
+    alert("하위 페이지를 탐색할 웹페이지 URL을 입력해 주세요.");
+    if (webUrlInput) webUrlInput.focus();
+    return;
+  }
+
+  if (discoverSubpagesBtn) discoverSubpagesBtn.disabled = true;
+  if (discoverSubpagesBtnText) {
+    discoverSubpagesBtnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> 탐색 중...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/crawl/discover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url, max_pages: 30 })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `탐색 실패 (${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data.pages || data.pages.length === 0) {
+      alert("해당 사이트에서 탐색 가능한 페이지를 찾을 수 없습니다.");
+      return;
+    }
+
+    discoveredSubpages = data.pages.map(p => ({ ...p, selected: true }));
+    openSubpageModal(data.domain || url, discoveredSubpages.length);
+    renderSubpagesList();
+  } catch (err) {
+    alert(`하위 페이지 탐색 중 오류: ${err.message}`);
+  } finally {
+    if (discoverSubpagesBtn) discoverSubpagesBtn.disabled = false;
+    if (discoverSubpagesBtnText) {
+      discoverSubpagesBtnText.textContent = "하위 페이지 탐색 & 선택";
+    }
+  }
+}
+
+function openSubpageModal(domain, count) {
+  if (subpageBaseDomainText) subpageBaseDomainText.textContent = domain;
+  if (subpageCountBadge) subpageCountBadge.textContent = `${count}개 발견`;
+  if (subpageFilterInput) subpageFilterInput.value = "";
+  if (subpageSelectModal) subpageSelectModal.classList.remove("hidden");
+}
+
+function closeSubpageModal() {
+  if (subpageSelectModal) subpageSelectModal.classList.add("hidden");
+}
+
+function renderSubpagesList() {
+  if (!subpageListContainer) return;
+  const filterText = (subpageFilterInput ? subpageFilterInput.value : "").toLowerCase().trim();
+
+  const selectedCount = discoveredSubpages.filter(p => p.selected).length;
+  if (subpageSelectedCount) subpageSelectedCount.textContent = selectedCount;
+
+  if (convertSelectedSubpagesBtn) {
+    convertSelectedSubpagesBtn.disabled = selectedCount === 0;
+  }
+  if (convertSelectedSubpagesBtnText) {
+    convertSelectedSubpagesBtnText.textContent = selectedCount > 0
+      ? `선택한 ${selectedCount}개 페이지 변환 시작`
+      : `페이지를 선택해 주세요`;
+  }
+
+  subpageListContainer.innerHTML = "";
+
+  const filtered = discoveredSubpages.filter(p => {
+    if (!filterText) return true;
+    return (p.title && p.title.toLowerCase().includes(filterText)) || (p.url && p.url.toLowerCase().includes(filterText));
+  });
+
+  if (filtered.length === 0) {
+    subpageListContainer.innerHTML = `
+      <div class="py-8 text-center text-xs text-slate-500">
+        검색된 페이지가 없습니다.
+      </div>
+    `;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const originalIndex = discoveredSubpages.indexOf(p);
+    const div = document.createElement("div");
+    div.className = "flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 transition";
+    div.innerHTML = `
+      <input type="checkbox" id="subpage_chk_${originalIndex}" ${p.selected ? "checked" : ""} class="mt-0.5 w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-0 cursor-pointer">
+      <label for="subpage_chk_${originalIndex}" class="flex-1 min-w-0 cursor-pointer select-none">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-xs text-white truncate max-w-md">${escapeHtml(p.title || p.url)}</span>
+          ${p.is_root ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700">홈/루트</span>' : ''}
+        </div>
+        <div class="text-[11px] text-slate-400 font-mono truncate hover:text-indigo-300" title="${escapeHtml(p.url)}">
+          ${escapeHtml(p.url)}
+        </div>
+      </label>
+      <a href="${p.url}" target="_blank" class="text-slate-500 hover:text-indigo-400 p-1 transition" title="새 창으로 원본 열기">
+        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+      </a>
+    `;
+
+    const chk = div.querySelector("input[type='checkbox']");
+    chk.addEventListener("change", (e) => {
+      discoveredSubpages[originalIndex].selected = e.target.checked;
+      const count = discoveredSubpages.filter(item => item.selected).length;
+      if (subpageSelectedCount) subpageSelectedCount.textContent = count;
+      if (convertSelectedSubpagesBtn) convertSelectedSubpagesBtn.disabled = count === 0;
+      if (convertSelectedSubpagesBtnText) {
+        convertSelectedSubpagesBtnText.textContent = count > 0
+          ? `선택한 ${count}개 페이지 변환 시작`
+          : `페이지를 선택해 주세요`;
+      }
+    });
+
+    subpageListContainer.appendChild(div);
+  });
+}
+
+function filterSubpagesList() {
+  renderSubpagesList();
+}
+
+function toggleSelectAllSubpages(selectAll) {
+  discoveredSubpages.forEach(p => { p.selected = selectAll; });
+  renderSubpagesList();
+}
+
+async function convertSelectedSubpages() {
+  const selectedUrls = discoveredSubpages.filter(p => p.selected).map(p => p.url);
+  if (selectedUrls.length === 0) {
+    alert("변환할 페이지를 최소 1개 이상 선택해 주세요.");
+    return;
+  }
+
+  closeSubpageModal();
+
+  resultsSection.classList.remove("hidden");
+  loadingIndicator.classList.remove("hidden");
+  loadingIndicator.classList.add("flex");
+
+  try {
+    const res = await fetch(`${API_BASE}/api/convert/url-batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        urls: selectedUrls,
+        enable_frontmatter: frontmatterToggle.checked,
+        tags: frontmatterTags.value.trim()
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `일괄 변환 오류 (${res.status})`);
+    }
+
+    const data = await res.json();
+    const items = data.results || [];
+    if (items.length === 0) {
+      alert("변환된 페이지가 없습니다.");
+      return;
+    }
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      convertedItems.unshift(items[i]);
+    }
+    renderFileList();
+
+    const successful = items.filter(it => it.success);
+    showToast(`선택한 ${successful.length}개 페이지 마크다운 변환 완료!`);
+
+    const totalChars = successful.reduce((acc, it) => acc + (it.char_count || 0), 0);
+    recordTokenUsage(Math.round(totalChars / 3.5), successful.length);
+
+    const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
+    const gdriveUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
+    if (gdriveAutoSave && gdriveUrl) {
+      for (let idx = 0; idx < successful.length; idx++) {
+        saveSingleToGdrive(idx);
+      }
+    }
+  } catch (err) {
+    alert(`선택 페이지 일괄 변환 중 오류: ${err.message}`);
+  } finally {
+    loadingIndicator.classList.add("hidden");
+    loadingIndicator.classList.remove("flex");
   }
 }
 
@@ -1120,12 +1384,18 @@ if (tokenModal) {
     if (e.target === tokenModal) closeTokenModal();
   });
 }
+if (subpageSelectModal) {
+  subpageSelectModal.addEventListener("click", (e) => {
+    if (e.target === subpageSelectModal) closeSubpageModal();
+  });
+}
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePreviewModal();
     closeApiKeyModal();
     closeGdriveModal();
     closeTokenModal();
+    closeSubpageModal();
   }
 });
 

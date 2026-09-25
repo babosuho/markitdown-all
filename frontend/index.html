@@ -100,19 +100,24 @@
           <i class="fa-solid fa-link absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
           <input type="url" id="webUrlInput" placeholder="https://example.com/article..." class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none font-mono">
         </div>
-        <button id="convertUrlBtn" onclick="handleUrlConvert()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shrink-0 flex items-center justify-center gap-1.5 transition shadow-sm">
-          <i class="fa-solid fa-arrow-down-to-bracket"></i>
-          <span id="convertUrlBtnText">마크다운 추출</span>
-        </button>
+        <div class="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <button id="convertUrlBtn" onclick="handleUrlConvert()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm" title="입력한 단일 웹페이지를 즉시 마크다운으로 변환">
+            <i class="fa-solid fa-arrow-down-to-bracket"></i>
+            <span id="convertUrlBtnText">페이지 변환</span>
+          </button>
+          <button id="discoverSubpagesBtn" onclick="handleDiscoverSubpages()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm" title="웹사이트 내부 하위 페이지들을 탐색하고 원하는 페이지만 선택하여 일괄 변환">
+            <i class="fa-solid fa-sitemap text-amber-300"></i>
+            <span id="discoverSubpagesBtnText">하위 페이지 탐색 & 선택</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Subpage Deep Crawl Option -->
-      <div class="max-w-2xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300 pt-0.5">
-        <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input type="checkbox" id="crawlSubpagesToggle" class="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700 focus:ring-0">
-          <span>하위 페이지 전체 크롤링 (동일 도메인 내 최대 10개 페이지 자동 수집)</span>
-        </label>
-        <span class="text-[11px] text-indigo-400/80 font-mono">Firecrawl Crawl Mode</span>
+      <!-- Subpage Info & Samples -->
+      <div class="max-w-2xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 pt-0.5">
+        <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+          <i class="fa-solid fa-circle-info text-indigo-400"></i>
+          <span>홈페이지 주소 입력 후 <strong>[하위 페이지 탐색 & 선택]</strong>을 누르면 전체 페이지 목록을 보고 선택 변환할 수 있습니다.</span>
+        </div>
       </div>
 
       <!-- Sample quick test URLs -->
@@ -332,6 +337,22 @@
           <input type="url" id="gdriveWebhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
         </div>
 
+        <!-- Verified Folder Info Banner -->
+        <div id="gdriveFolderInfoBox" class="hidden p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/80 space-y-1.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-emerald-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-folder-check"></i>
+              <span>연동 확인된 저장 위치</span>
+            </span>
+            <a id="gdriveFolderLink" href="#" target="_blank" class="text-[11px] text-emerald-400 hover:text-emerald-300 underline flex items-center gap-1">
+              <span>드라이브에서 폴더 열기</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+          <div class="text-slate-200">📁 저장 대상 폴더: <span id="gdriveDetectedFolderName" class="text-emerald-300 font-bold">내 드라이브</span></div>
+          <div class="text-[10px] text-slate-400 font-mono truncate" id="gdriveDetectedFolderId">ID: root</div>
+        </div>
+
         <!-- Guide & Code Accordion -->
         <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
           <div class="flex items-center justify-between">
@@ -443,6 +464,65 @@
     </div>
   </div>
 
+  <!-- Subpage Selection Modal -->
+  <div id="subpageSelectModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-sitemap text-amber-400 text-lg"></i>
+          <div>
+            <div class="font-bold text-sm text-white flex items-center gap-2">
+              <span>하위 페이지 탐색 결과</span>
+              <span id="subpageCountBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold font-mono">0개 발견</span>
+            </div>
+            <div id="subpageBaseDomainText" class="text-[11px] text-slate-400 truncate max-w-sm">도메인</div>
+          </div>
+        </div>
+        <button onclick="closeSubpageModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Filter & Quick Action Bar -->
+      <div class="p-3 border-b border-slate-800 bg-slate-950/60 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+        <div class="relative w-full sm:w-72">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="text" id="subpageFilterInput" oninput="filterSubpagesList()" placeholder="페이지 제목 또는 URL 검색..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onclick="toggleSelectAllSubpages(true)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">전체 선택</button>
+          <button onclick="toggleSelectAllSubpages(false)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">전체 해제</button>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400 text-xs">선택: <strong id="subpageSelectedCount" class="text-indigo-400 font-mono">0</strong>개</span>
+        </div>
+      </div>
+
+      <!-- Subpage Checklist Body -->
+      <div id="subpageListContainer" class="p-3 overflow-y-auto flex-1 space-y-1.5 max-h-[50vh]">
+        <!-- Dynamic list items injected here -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900/90 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="text-[11px] text-slate-400 text-center sm:text-left">
+          체크된 페이지만 각각의 마크다운 파일로 일괄 변환됩니다.
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onclick="closeSubpageModal()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+            취소
+          </button>
+          <button id="convertSelectedSubpagesBtn" onclick="convertSelectedSubpages()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-sm">
+            <i class="fa-solid fa-file-arrow-down"></i>
+            <span id="convertSelectedSubpagesBtnText">선택한 페이지 변환 시작</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Markdown Preview Modal -->
   <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
@@ -490,6 +570,6 @@
     All-to-Markdown &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Pipelines.
   </footer>
 
-  <script src="app.js?v=1.4.0"></script>
+  <script src="app.js?v=1.5.0"></script>
 </body>
 </html>

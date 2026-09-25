@@ -323,7 +323,7 @@ def _convert_single_url(target_url: str, enable_frontmatter: bool = True, tags: 
         }
 
 
-def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
+def _discover_internal_pages(root_url: str, max_pages: int = 30) -> list:
     from urllib.parse import urlparse, urljoin
     from bs4 import BeautifulSoup
     import urllib.request
@@ -341,8 +341,8 @@ def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
         ".css", ".js", ".json", ".xml", ".woff", ".woff2", ".ttf"
     )
 
-    discovered = [root_url]
-    visited = {root_url.rstrip("/")}
+    discovered = []
+    visited = set()
 
     try:
         req = urllib.request.Request(
@@ -351,10 +351,25 @@ def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             },
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=12) as response:
             html = response.read().decode("utf-8", errors="ignore")
 
         soup = BeautifulSoup(html, "html.parser")
+
+        root_title = ""
+        if soup.title and soup.title.string:
+            root_title = soup.title.string.strip()
+        if not root_title:
+            root_title = f"{base_domain} (홈페이지)"
+
+        discovered.append({
+            "url": root_url,
+            "title": root_title,
+            "path": parsed_root.path or "/",
+            "is_root": True
+        })
+        visited.add(root_url.rstrip("/"))
+
         for tag in soup.find_all("a", href=True):
             href = tag["href"].strip()
             if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
@@ -374,13 +389,94 @@ def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
 
             if full_url not in visited:
                 visited.add(full_url)
-                discovered.append(full_url)
+                link_text = tag.get_text(strip=True)
+                title = link_text if link_text else (p.path.strip("/") or "페이지")
+                if len(title) > 60:
+                    title = title[:60] + "..."
+                discovered.append({
+                    "url": full_url,
+                    "title": title,
+                    "path": p.path or "/",
+                    "is_root": False
+                })
                 if len(discovered) >= max_pages:
                     break
     except Exception as e:
-        logger.warning(f"Error crawling subpages from {root_url}: {e}")
+        logger.warning(f"Error discovering subpages from {root_url}: {e}")
+        if not discovered:
+            discovered.append({
+                "url": root_url,
+                "title": root_url,
+                "path": "/",
+                "is_root": True
+            })
 
     return discovered[:max_pages]
+
+
+def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
+    pages = _discover_internal_pages(root_url, max_pages=max_pages)
+    return [p["url"] for p in pages]
+
+
+class UrlDiscoverRequest(BaseModel):
+    url: str
+    max_pages: int = 30
+
+
+@app.post("/api/crawl/discover")
+def discover_subpages(req: UrlDiscoverRequest):
+    """
+    Scrapes a webpage to discover same-domain subpage links, titles, and paths.
+    Returns a list for users to inspect and selectively convert.
+    """
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="탐색할 웹페이지 URL을 입력해 주세요.")
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+
+    pages = _discover_internal_pages(url, max_pages=min(max(1, req.max_pages), 50))
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc
+    return {
+        "base_url": url,
+        "domain": domain,
+        "total": len(pages),
+        "pages": pages,
+    }
+
+
+class UrlBatchConvertRequest(BaseModel):
+    urls: List[str]
+    enable_frontmatter: bool = True
+    tags: Optional[str] = None
+
+
+@app.post("/api/convert/url-batch")
+def convert_batch_urls_to_markdown(req: UrlBatchConvertRequest):
+    """
+    Converts a selected list of URLs to Markdown in parallel.
+    """
+    if not req.urls:
+        raise HTTPException(status_code=400, detail="변환할 URL 목록이 비어 있습니다.")
+
+    target_urls = req.urls[:30]
+
+    futures = [
+        thread_pool.submit(_convert_single_url, u, req.enable_frontmatter, req.tags)
+        for u in target_urls
+    ]
+    results = [f.result() for f in futures]
+    success_count = sum(1 for r in results if r.get("success"))
+
+    return {
+        "total": len(results),
+        "success_count": success_count,
+        "failed_count": len(results) - success_count,
+        "results": results,
+    }
 
 
 @app.post("/api/convert/url")
