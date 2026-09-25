@@ -221,9 +221,8 @@ const GAS_CODE_TEMPLATE = `// ==========================================
 // All-to-Markdown -> 구글 드라이브 자동 저장 스크립트
 // ==========================================
 
-// 1. 저장할 구글 드라이브 폴더 주소 또는 폴더 ID를 입력하세요.
-// (폴더 전체 주소 https://drive.google.com/drive/folders/xxxx 또는 ID 문자열 아무거나 붙여넣어도 자동 인식됩니다)
-// 비워두면 드라이브 최상위(내 드라이브)에 저장됩니다.
+// 1. 저장할 구글 드라이브 폴더 주소, 폴더 ID, 또는 폴더 이름을 입력하세요.
+// 비워두면 내 드라이브에 'MarkItDown' 폴더를 자동으로 생성하여 저장합니다!
 var FOLDER_ID = "";
 
 function extractFolderId(input) {
@@ -234,26 +233,44 @@ function extractFolderId(input) {
   return str.replace(/['"\\s]/g, "");
 }
 
+function resolveTargetFolder() {
+  var raw = (FOLDER_ID || "").trim();
+  var cleanId = extractFolderId(raw);
+
+  // 1. 폴더 ID 또는 폴더 URL로 조회 시도
+  if (cleanId) {
+    try {
+      return DriveApp.getFolderById(cleanId);
+    } catch (e1) {
+      // 2. ID 조회 실패 시 입력값을 폴더 이름으로 검색 시도
+      try {
+        var byName = DriveApp.getFoldersByName(raw);
+        if (byName.hasNext()) return byName.next();
+      } catch (e2) {}
+    }
+  }
+
+  // 3. 비어있거나 찾을 수 없는 경우: 'MarkItDown' 전용 폴더 자동 생성/사용
+  try {
+    var defaultFolders = DriveApp.getFoldersByName("MarkItDown");
+    if (defaultFolders.hasNext()) {
+      return defaultFolders.next();
+    } else {
+      return DriveApp.createFolder("MarkItDown");
+    }
+  } catch (e3) {
+    // 4. 최후의 수단: 내 드라이브 최상위 루트
+    return DriveApp.getRootFolder();
+  }
+}
+
 function doPost(e) {
   try {
     var payload = JSON.parse(e.postData.contents);
     var filename = payload.filename || ("document_" + new Date().getTime() + ".md");
     var markdown = payload.markdown || "";
 
-    var cleanId = extractFolderId(FOLDER_ID);
-    var folder;
-    if (cleanId) {
-      try {
-        folder = DriveApp.getFolderById(cleanId);
-      } catch (errFolder) {
-        return ContentService.createTextOutput(JSON.stringify({
-          status: "error",
-          message: "지정한 폴더 ID(" + cleanId + ")를 찾을 수 없거나 접근 권한이 없습니다: " + errFolder.toString()
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
-    } else {
-      folder = DriveApp.getRootFolder();
-    }
+    var folder = resolveTargetFolder();
 
     // 동일한 파일명이 이미 있으면 최신 내용으로 갱신
     var existingFiles = folder.getFilesByName(filename);
