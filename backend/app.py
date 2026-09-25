@@ -35,6 +35,21 @@ router = SmartRouter()
 thread_pool = ThreadPoolExecutor(max_workers=4)
 
 
+def get_default_api_key() -> str:
+    """Retrieve Gemini API key from environment, checking case variations and stripping quotes."""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except Exception:
+        pass
+
+    for k, v in os.environ.items():
+        clean_k = k.strip().upper()
+        if clean_k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_KEY") and v and v.strip():
+            return v.strip().strip("'\"")
+    return ""
+
+
 def _process_single_file(
     file_bytes: bytes,
     filename: str,
@@ -49,19 +64,19 @@ def _process_single_file(
         enable_frontmatter=enable_frontmatter,
         frontmatter_tags=tags,
         use_vision=use_vision,
-        gemini_api_key=api_key,
+        gemini_api_key=api_key or get_default_api_key(),
     )
 
 
 @app.get("/api/health")
 def health_check():
-    has_env_key = bool(os.environ.get("GEMINI_API_KEY"))
+    default_key = get_default_api_key()
     return {
         "status": "healthy",
         "service": "All-to-Markdown",
         "version": "1.1.0",
         "vision_ai_available": True,
-        "has_default_api_key": has_env_key,
+        "has_default_api_key": bool(default_key),
         "supported_extensions": list(router.OFFICE_EXTENSIONS | router.HWPX_EXTENSIONS | router.TEXT_EXTENSIONS),
     }
 
@@ -83,7 +98,7 @@ async def convert_documents(
         raise HTTPException(status_code=400, detail="업로드된 파일이 없습니다.")
 
     parsed_tags = [t.strip() for t in tags.split(",")] if tags else None
-    effective_api_key = api_key or x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+    effective_api_key = api_key or x_gemini_api_key or get_default_api_key()
 
     # Read all files into memory
     file_payloads = []
@@ -152,7 +167,7 @@ async def convert_and_download_zip(
         raise HTTPException(status_code=400, detail="업로드된 파일이 없습니다.")
 
     parsed_tags = [t.strip() for t in tags.split(",")] if tags else None
-    effective_api_key = api_key or x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+    effective_api_key = api_key or x_gemini_api_key or get_default_api_key()
 
     file_payloads = []
     for f in files:
