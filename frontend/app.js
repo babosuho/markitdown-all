@@ -56,6 +56,7 @@ const pwaInstallBtn = document.getElementById("pwaInstallBtn");
 const tokenQuotaBtn = document.getElementById("tokenQuotaBtn");
 const tokenQuotaBadge = document.getElementById("tokenQuotaBadge");
 const tokenModal = document.getElementById("tokenModal");
+const statRemainingQuota = document.getElementById("statRemainingQuota");
 const statTodayRequests = document.getElementById("statTodayRequests");
 const statTodayTokens = document.getElementById("statTodayTokens");
 
@@ -64,6 +65,7 @@ const tabModeFiles = document.getElementById("tabModeFiles");
 const tabModeUrl = document.getElementById("tabModeUrl");
 const urlInputZone = document.getElementById("urlInputZone");
 const webUrlInput = document.getElementById("webUrlInput");
+const crawlSubpagesToggle = document.getElementById("crawlSubpagesToggle");
 const convertUrlBtn = document.getElementById("convertUrlBtn");
 const convertUrlBtnText = document.getElementById("convertUrlBtnText");
 
@@ -560,9 +562,13 @@ function recordTokenUsage(tokens, requests = 1) {
 function updateTokenUI() {
   const tokens = parseInt(localStorage.getItem("GEMINI_USAGE_TOKENS") || "0", 10);
   const requests = parseInt(localStorage.getItem("GEMINI_USAGE_REQUESTS") || "0", 10);
+  const remaining = Math.max(0, 1500 - requests);
 
   if (tokenQuotaBadge) {
-    tokenQuotaBadge.textContent = `토큰: ~${tokens.toLocaleString()} 사용`;
+    tokenQuotaBadge.textContent = `${remaining.toLocaleString()}/1,500`;
+  }
+  if (statRemainingQuota) {
+    statRemainingQuota.textContent = `${remaining.toLocaleString()}/1,500`;
   }
   if (statTodayRequests) {
     statTodayRequests.textContent = `${requests.toLocaleString()}회`;
@@ -662,12 +668,16 @@ async function handleUrlConvert() {
     return;
   }
 
+  const crawlSubpages = crawlSubpagesToggle ? crawlSubpagesToggle.checked : false;
+
   resultsSection.classList.remove("hidden");
   loadingIndicator.classList.remove("hidden");
   loadingIndicator.classList.add("flex");
 
   if (convertUrlBtn) convertUrlBtn.disabled = true;
-  if (convertUrlBtnText) convertUrlBtnText.textContent = "추출 중...";
+  if (convertUrlBtnText) {
+    convertUrlBtnText.textContent = crawlSubpages ? "하위 페이지 크롤링 중..." : "추출 중...";
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/convert/url`, {
@@ -676,7 +686,9 @@ async function handleUrlConvert() {
       body: JSON.stringify({
         url: url,
         enable_frontmatter: frontmatterToggle.checked,
-        tags: frontmatterTags.value.trim()
+        tags: frontmatterTags.value.trim(),
+        crawl_subpages: crawlSubpages,
+        max_pages: 10
       })
     });
 
@@ -685,23 +697,41 @@ async function handleUrlConvert() {
       throw new Error(errData.detail || `서버 응답 오류 (${res.status})`);
     }
 
-    const item = await res.json();
-    convertedItems.unshift(item);
+    const data = await res.json();
+    const items = Array.isArray(data.results) ? data.results : [data];
+    if (items.length === 0) {
+      alert("추출된 웹페이지 내용이 없습니다.");
+      return;
+    }
+
+    // Unshift in reverse order so top item matches crawler root
+    for (let i = items.length - 1; i >= 0; i--) {
+      convertedItems.unshift(items[i]);
+    }
     renderFileList();
 
-    if (item.success) {
-      showToast(`'${item.md_filename}' 웹페이지 마크다운 변환 완료!`);
+    const successful = items.filter(it => it.success);
+    if (successful.length > 0) {
+      if (successful.length === 1) {
+        showToast(`'${successful[0].md_filename}' 웹페이지 마크다운 변환 완료!`);
+      } else {
+        showToast(`총 ${successful.length}개 웹페이지(하위 페이지 포함) 마크다운 변환 완료!`);
+      }
+
       // Record token usage (~3.5 chars per token estimate)
-      recordTokenUsage(Math.round(item.char_count / 3.5), 1);
+      const totalChars = successful.reduce((acc, it) => acc + (it.char_count || 0), 0);
+      recordTokenUsage(Math.round(totalChars / 3.5), successful.length);
 
       // Auto-save to Google Drive if enabled
       const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
       const gdriveUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
       if (gdriveAutoSave && gdriveUrl) {
-        saveSingleToGdrive(0);
+        for (let idx = 0; idx < successful.length; idx++) {
+          saveSingleToGdrive(idx);
+        }
       }
     } else {
-      alert(`웹페이지 변환 실패: ${item.error}`);
+      alert(`웹페이지 변환 실패: ${items[0].error || "오류가 발생했습니다."}`);
     }
 
     if (webUrlInput) webUrlInput.value = "";

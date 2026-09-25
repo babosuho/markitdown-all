@@ -248,30 +248,24 @@ class UrlConvertRequest(BaseModel):
     url: str
     enable_frontmatter: bool = True
     tags: Optional[str] = None
+    crawl_subpages: bool = False
+    max_pages: int = 10
 
 
-@app.post("/api/convert/url")
-def convert_url_to_markdown(req: UrlConvertRequest):
-    """
-    Firecrawl-style web page to Markdown converter.
-    Extracts clean readable content from any webpage and formats it for Obsidian/AI pipelines.
-    """
-    url = req.url.strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="변환할 웹페이지 URL을 입력해 주세요.")
+def _convert_single_url(target_url: str, enable_frontmatter: bool = True, tags: Optional[str] = None) -> dict:
+    from urllib.parse import urlparse
+    from backend.parsers.markdown_cleaner import MarkdownCleaner
 
-    if not url.startswith("http://") and not url.startswith("https://"):
-        url = "https://" + url
+    target_url = target_url.strip()
+    if not target_url.startswith("http://") and not target_url.startswith("https://"):
+        target_url = "https://" + target_url
+
+    parsed_url = urlparse(target_url)
+    domain = parsed_url.netloc or "webpage"
 
     try:
-        from urllib.parse import urlparse
-        from backend.parsers.markdown_cleaner import MarkdownCleaner
-
-        parsed_url = urlparse(url)
-        domain = parsed_url.netloc or "webpage"
-
         # Use MarkItDown convert_url
-        result = router.markitdown_parser.md_engine.convert_url(url)
+        result = router.markitdown_parser.md_engine.convert_url(target_url)
         raw_markdown = result.text_content or ""
         page_title = getattr(result, "title", None) or domain
 
@@ -287,16 +281,16 @@ def convert_url_to_markdown(req: UrlConvertRequest):
         md_filename = f"{safe_title}.md"
 
         # Tags
-        parsed_tags = [t.strip() for t in req.tags.split(",")] if req.tags else ["web-article", "all-to-markdown"]
+        parsed_tags = [t.strip() for t in tags.split(",")] if tags else ["web-article", "all-to-markdown"]
 
         # Clean markdown & add Obsidian YAML frontmatter
         cleaned_body = MarkdownCleaner.clean(raw_markdown)
-        if req.enable_frontmatter:
+        if enable_frontmatter:
             cleaned = MarkdownCleaner.add_frontmatter(
                 cleaned_body,
                 filename=md_filename,
                 tags=parsed_tags,
-                extra_meta={"source_url": url, "parser": "Firecrawl Web Reader (MarkItDown)"},
+                extra_meta={"source_url": target_url, "parser": "Firecrawl Web Reader (MarkItDown)"},
             )
         else:
             cleaned = cleaned_body
@@ -305,7 +299,7 @@ def convert_url_to_markdown(req: UrlConvertRequest):
         char_count = len(cleaned)
 
         return {
-            "filename": f"URL: {url}",
+            "filename": f"URL: {target_url}",
             "md_filename": md_filename,
             "markdown": cleaned,
             "char_count": char_count,
@@ -313,20 +307,119 @@ def convert_url_to_markdown(req: UrlConvertRequest):
             "parser_used": "Firecrawl Web Reader (MarkItDown)",
             "success": True,
             "error": None,
-            "source_url": url,
+            "source_url": target_url,
         }
     except Exception as e:
         return {
-            "filename": f"URL: {url}",
-            "md_filename": "webpage_error.md",
+            "filename": f"URL: {target_url}",
+            "md_filename": f"{domain}_error.md",
             "markdown": "",
             "char_count": 0,
             "line_count": 0,
             "parser_used": "Firecrawl Web Reader",
             "success": False,
             "error": f"웹페이지 변환 실패: {str(e)}",
-            "source_url": url,
+            "source_url": target_url,
         }
+
+
+def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
+    from urllib.parse import urlparse, urljoin
+    from bs4 import BeautifulSoup
+    import urllib.request
+
+    if not root_url.startswith("http://") and not root_url.startswith("https://"):
+        root_url = "https://" + root_url
+
+    parsed_root = urlparse(root_url)
+    base_domain = parsed_root.netloc.lower()
+
+    skip_extensions = (
+        ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico",
+        ".pdf", ".zip", ".tar", ".gz", ".rar", ".7z",
+        ".mp3", ".mp4", ".wav", ".avi", ".mov",
+        ".css", ".js", ".json", ".xml", ".woff", ".woff2", ".ttf"
+    )
+
+    discovered = [root_url]
+    visited = {root_url.rstrip("/")}
+
+    try:
+        req = urllib.request.Request(
+            root_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all("a", href=True):
+            href = tag["href"].strip()
+            if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
+                continue
+
+            full_url = urljoin(root_url, href)
+            full_url = full_url.split("#")[0].rstrip("/")
+            if not full_url:
+                continue
+
+            p = urlparse(full_url)
+            if p.netloc.lower() != base_domain and p.netloc.lower() != f"www.{base_domain}" and f"www.{p.netloc.lower()}" != base_domain:
+                continue
+
+            if any(p.path.lower().endswith(ext) for ext in skip_extensions):
+                continue
+
+            if full_url not in visited:
+                visited.add(full_url)
+                discovered.append(full_url)
+                if len(discovered) >= max_pages:
+                    break
+    except Exception as e:
+        logger.warning(f"Error crawling subpages from {root_url}: {e}")
+
+    return discovered[:max_pages]
+
+
+@app.post("/api/convert/url")
+def convert_url_to_markdown(req: UrlConvertRequest):
+    """
+    Firecrawl-style web page to Markdown converter.
+    Extracts clean readable content from any webpage and formats it for Obsidian/AI pipelines.
+    Supports single page or deep subpage crawling on the same domain.
+    """
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="변환할 웹페이지 URL을 입력해 주세요.")
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+
+    target_urls = [url]
+    if req.crawl_subpages:
+        target_urls = _crawl_internal_urls(url, max_pages=min(max(1, req.max_pages), 20))
+
+    results = []
+    for u in target_urls:
+        item = _convert_single_url(u, enable_frontmatter=req.enable_frontmatter, tags=req.tags)
+        results.append(item)
+
+    success_count = sum(1 for r in results if r.get("success"))
+
+    if not req.crawl_subpages and len(results) == 1:
+        single = dict(results[0])
+        single["total"] = 1
+        single["results"] = results
+        return single
+
+    return {
+        "total": len(results),
+        "success_count": success_count,
+        "failed_count": len(results) - success_count,
+        "results": results,
+    }
 
 
 # Mount frontend static directory if exists

@@ -79,3 +79,36 @@ def test_api_convert_url():
     assert "Example Domain" in data["markdown"]
     assert "source_url" in data["markdown"]
     assert data["md_filename"].endswith(".md")
+
+
+def test_api_convert_url_crawl_subpages(monkeypatch):
+    # Test crawling option
+    sample_html = '''
+    <html>
+      <head><title>Home Page</title></head>
+      <body>
+        <a href="/about">About Us</a>
+        <a href="/contact">Contact</a>
+        <a href="https://external.com">External</a>
+      </body>
+    </html>
+    '''
+    from backend.app import _crawl_internal_urls
+    
+    class MockResponse:
+        def read(self):
+            return sample_html.encode("utf-8")
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=10: MockResponse())
+
+    urls = _crawl_internal_urls("https://mysite.com", max_pages=5)
+    assert "https://mysite.com" in urls
+    assert "https://mysite.com/about" in urls
+    assert "https://mysite.com/contact" in urls
+    assert not any("external.com" in u for u in urls)
+

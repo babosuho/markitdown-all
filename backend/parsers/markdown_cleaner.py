@@ -32,6 +32,20 @@ class MarkdownCleaner:
         lines = [line.rstrip() for line in text.split("\n")]
         text = "\n".join(lines)
 
+        # Strip outer ```markdown ... ``` codeblock wrapper if LLM wrapped it
+        trimmed = text.strip()
+        if (trimmed.startswith("```markdown") or trimmed.startswith("```md")) and trimmed.endswith("```"):
+            split_lines = trimmed.split("\n")
+            if len(split_lines) >= 2 and split_lines[-1].strip() == "```":
+                text = "\n".join(split_lines[1:-1]).strip()
+        elif trimmed.startswith("```\n") and trimmed.endswith("\n```"):
+            split_lines = trimmed.split("\n")
+            if len(split_lines) >= 3 and split_lines[-1].strip() == "```":
+                text = "\n".join(split_lines[1:-1]).strip()
+
+        # Strip conversational AI filler prefixes at beginning of document
+        text = re.sub(r"^(?:다음은\s*[^:\n]+:\s*\n|Here is the markdown[^\n]*:\s*\n)", "", text, flags=re.IGNORECASE)
+
         # Replace 3 or more consecutive newlines with 2 newlines
         text = re.sub(r"\n{3,}", "\n\n", text)
 
