@@ -93,19 +93,17 @@ def test_api_convert_url_crawl_subpages(monkeypatch):
       </body>
     </html>
     '''
+    import requests
+    class MockRequestsResponse:
+        def __init__(self, content):
+            self.content = content.encode("utf-8")
+            self.text = content
+            self.status_code = 200
+            self.encoding = "utf-8"
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: MockRequestsResponse(sample_html))
+
     from backend.app import _crawl_internal_urls
-    
-    class MockResponse:
-        def read(self):
-            return sample_html.encode("utf-8")
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            pass
-
-    import urllib.request
-    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=10: MockResponse())
-
     urls = _crawl_internal_urls("https://mysite.com", max_pages=5)
     assert "https://mysite.com" in urls
     assert "https://mysite.com/about" in urls
@@ -123,16 +121,15 @@ def test_api_crawl_discover(monkeypatch):
       </body>
     </html>
     '''
-    class MockResponse:
-        def read(self):
-            return sample_html.encode("utf-8")
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            pass
+    import requests
+    class MockRequestsResponse:
+        def __init__(self, content):
+            self.content = content.encode("utf-8")
+            self.text = content
+            self.status_code = 200
+            self.encoding = "utf-8"
 
-    import urllib.request
-    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=12: MockResponse())
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: MockRequestsResponse(sample_html))
 
     res = client.post("/api/crawl/discover", json={"url": "https://docs.mysite.com", "max_pages": 10})
     assert res.status_code == 200

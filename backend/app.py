@@ -5,7 +5,9 @@ Supports Multimodal Gemini Vision AI for image-heavy slide decks and PDFs.
 """
 import io
 import json
+import logging
 import os
+import ssl
 import urllib.request
 import zipfile
 from typing import List, Optional
@@ -18,6 +20,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.parsers.smart_router import SmartRouter, ConversionResult
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("app")
 
 app = FastAPI(
     title="All-to-Markdown API",
@@ -211,17 +216,23 @@ class GDriveUploadRequest(BaseModel):
     webhook_url: str
     filename: str
     markdown: str
+    subfolder: Optional[str] = None
 
 
 @app.post("/api/gdrive/upload")
 def upload_to_gdrive(req: GDriveUploadRequest):
     """
     Proxy upload to Google Apps Script webhook to bypass browser CORS redirects.
+    Supports subfolder organization for batch-converted documents.
     """
     if not req.webhook_url.startswith("https://script.google.com/"):
         raise HTTPException(status_code=400, detail="올바른 Google Apps Script URL이 아닙니다.")
 
-    data = json.dumps({"filename": req.filename, "markdown": req.markdown}).encode("utf-8")
+    payload = {"filename": req.filename, "markdown": req.markdown}
+    if req.subfolder:
+        payload["subfolder"] = req.subfolder
+
+    data = json.dumps(payload).encode("utf-8")
     req_obj = urllib.request.Request(
         req.webhook_url,
         data=data,
@@ -326,7 +337,9 @@ def _convert_single_url(target_url: str, enable_frontmatter: bool = True, tags: 
 def _discover_internal_pages(root_url: str, max_pages: int = 30) -> list:
     from urllib.parse import urlparse, urljoin
     from bs4 import BeautifulSoup
-    import urllib.request
+    import requests
+    from urllib.parse import urlparse, urljoin
+    from bs4 import BeautifulSoup
 
     if not root_url.startswith("http://") and not root_url.startswith("https://"):
         root_url = "https://" + root_url
@@ -345,16 +358,13 @@ def _discover_internal_pages(root_url: str, max_pages: int = 30) -> list:
     visited = set()
 
     try:
-        req = urllib.request.Request(
-            root_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
-        )
-        with urllib.request.urlopen(req, timeout=12) as response:
-            html = response.read().decode("utf-8", errors="ignore")
-
-        soup = BeautifulSoup(html, "html.parser")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        }
+        resp = requests.get(root_url, headers=headers, verify=False, timeout=12)
+        soup = BeautifulSoup(resp.content, "html.parser")
 
         root_title = ""
         if soup.title and soup.title.string:

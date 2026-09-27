@@ -269,8 +269,20 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var filename = payload.filename || ("document_" + new Date().getTime() + ".md");
     var markdown = payload.markdown || "";
+    var subfolderName = (payload.subfolder || "").trim();
 
     var folder = resolveTargetFolder();
+
+    // 하위 폴더(subfolder) 지정 시 자동 생성/조회하여 분리 보관
+    if (subfolderName) {
+      subfolderName = subfolderName.replace(/[\\\\/:*?"<>|]/g, "_");
+      var subFolders = folder.getFoldersByName(subfolderName);
+      if (subFolders.hasNext()) {
+        folder = subFolders.next();
+      } else {
+        folder = folder.createFolder(subfolderName);
+      }
+    }
 
     // 동일한 파일명이 이미 있으면 최신 내용으로 갱신
     var existingFiles = folder.getFilesByName(filename);
@@ -476,16 +488,20 @@ async function testGdriveConnection() {
   }
 }
 
-async function executeGdriveUpload(webhookUrl, filename, markdown) {
+async function executeGdriveUpload(webhookUrl, filename, markdown, subfolder = null) {
   try {
+    const payload = {
+      webhook_url: webhookUrl,
+      filename: filename,
+      markdown: markdown,
+    };
+    if (subfolder) {
+      payload.subfolder = subfolder;
+    }
     const res = await fetch(`${API_BASE}/api/gdrive/upload`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        webhook_url: webhookUrl,
-        filename: filename,
-        markdown: markdown,
-      }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       const data = await res.json();
@@ -508,7 +524,7 @@ async function executeGdriveUpload(webhookUrl, filename, markdown) {
   }
 }
 
-async function saveSingleToGdrive(index) {
+async function saveSingleToGdrive(index, subfolder = null) {
   const item = convertedItems[index];
   if (!item || !item.markdown) return;
 
@@ -528,7 +544,7 @@ async function saveSingleToGdrive(index) {
   }
 
   try {
-    const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown);
+    const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown, subfolder);
     if (res.success) {
       if (btn) {
         if (res.url) {
@@ -569,6 +585,12 @@ async function uploadAllToGdrive() {
     return;
   }
 
+  // Generate date-stamped subfolder name if multiple items to keep files organized
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const timeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const batchSubfolder = validItems.length > 1 ? `변환문서_${timeStr}` : null;
+
   if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = true;
   const originalText = uploadAllGdriveText ? uploadAllGdriveText.textContent : "드라이브 전체 저장";
   
@@ -586,7 +608,7 @@ async function uploadAllToGdrive() {
     }
 
     try {
-      const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown);
+      const res = await executeGdriveUpload(webhookUrl, item.md_filename, item.markdown, batchSubfolder);
       if (res.success) {
         successCount++;
         if (btn) {
@@ -605,7 +627,10 @@ async function uploadAllToGdrive() {
 
   if (uploadAllGdriveText) uploadAllGdriveText.textContent = originalText;
   if (uploadAllGdriveBtn) uploadAllGdriveBtn.disabled = false;
-  showToast(`총 ${successCount}개 파일이 구글 드라이브에 성공적으로 저장되었습니다!`);
+  const finishMsg = batchSubfolder
+    ? `총 ${successCount}개 파일이 구글 드라이브 '${batchSubfolder}' 하위 폴더에 깔끔하게 저장되었습니다!`
+    : `총 ${successCount}개 파일이 구글 드라이브에 성공적으로 저장되었습니다!`;
+  showToast(finishMsg);
 }
 
 // ==========================================
@@ -1014,8 +1039,14 @@ async function convertSelectedSubpages() {
     const gdriveAutoSave = localStorage.getItem("GDRIVE_AUTO_SAVE") === "true";
     const gdriveUrl = localStorage.getItem("GDRIVE_WEBHOOK_URL");
     if (gdriveAutoSave && gdriveUrl) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const timeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+      const domainSlug = (subpageBaseDomainText ? subpageBaseDomainText.textContent : "웹사이트").replace(/[^a-zA-Z0-9가-힣._-]/g, "_");
+      const subfolder = successful.length > 1 ? `${domainSlug}_${timeStr}` : null;
+
       for (let idx = 0; idx < successful.length; idx++) {
-        saveSingleToGdrive(idx);
+        saveSingleToGdrive(idx, subfolder);
       }
     }
   } catch (err) {
