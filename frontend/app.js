@@ -856,6 +856,8 @@ async function handleUrlConvert() {
 // Subpage Discovery & Selective Crawling
 // ==========================================
 let discoveredSubpages = [];
+let currentDiscoverUrl = "";
+let currentDiscoverMax = 50;
 
 async function handleDiscoverSubpages() {
   const url = (webUrlInput ? webUrlInput.value : "").trim();
@@ -864,6 +866,9 @@ async function handleDiscoverSubpages() {
     if (webUrlInput) webUrlInput.focus();
     return;
   }
+
+  currentDiscoverUrl = url;
+  currentDiscoverMax = 50;
 
   if (discoverSubpagesBtn) discoverSubpagesBtn.disabled = true;
   if (discoverSubpagesBtnText) {
@@ -874,7 +879,7 @@ async function handleDiscoverSubpages() {
     const res = await fetch(`${API_BASE}/api/crawl/discover`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url, max_pages: 30 })
+      body: JSON.stringify({ url: url, max_pages: currentDiscoverMax })
     });
 
     if (!res.ok) {
@@ -897,6 +902,70 @@ async function handleDiscoverSubpages() {
     if (discoverSubpagesBtn) discoverSubpagesBtn.disabled = false;
     if (discoverSubpagesBtnText) {
       discoverSubpagesBtnText.textContent = "하위 페이지 탐색 & 선택";
+    }
+  }
+}
+
+// Load More Subpages (+50)
+async function handleLoadMoreSubpages() {
+  if (!currentDiscoverUrl) return;
+
+  const loadMoreBtn = document.getElementById("loadMoreSubpagesBtn");
+  const loadMoreBtnText = document.getElementById("loadMoreSubpagesBtnText");
+
+  currentDiscoverMax += 50;
+  if (currentDiscoverMax > 200) currentDiscoverMax = 200;
+
+  if (loadMoreBtn) loadMoreBtn.disabled = true;
+  if (loadMoreBtnText) {
+    loadMoreBtnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> 더 찾는 중...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/crawl/discover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: currentDiscoverUrl, max_pages: currentDiscoverMax })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `더 찾기 실패 (${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data.pages || data.pages.length === 0) {
+      showToast("추가로 발견된 페이지가 없습니다.");
+      return;
+    }
+
+    const existingUrls = new Set(discoveredSubpages.map(p => p.url));
+    let newItemsCount = 0;
+
+    data.pages.forEach(p => {
+      if (!existingUrls.has(p.url)) {
+        discoveredSubpages.push({ ...p, selected: true });
+        existingUrls.add(p.url);
+        newItemsCount++;
+      }
+    });
+
+    if (subpageCountBadge) {
+      subpageCountBadge.textContent = `${discoveredSubpages.length}개 발견`;
+    }
+    renderSubpagesList();
+
+    if (newItemsCount > 0) {
+      showToast(`${newItemsCount}개의 새로운 하위 페이지가 추가되었습니다. (총 ${discoveredSubpages.length}개)`);
+    } else {
+      showToast(`더 이상 새로운 하위 페이지가 없습니다. (총 ${discoveredSubpages.length}개)`);
+    }
+  } catch (err) {
+    alert(`하위 페이지 더 찾기 중 오류: ${err.message}`);
+  } finally {
+    if (loadMoreBtn) loadMoreBtn.disabled = false;
+    if (loadMoreBtnText) {
+      loadMoreBtnText.textContent = `더 찾기 (+50개)`;
     }
   }
 }

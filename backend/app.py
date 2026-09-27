@@ -334,12 +334,10 @@ def _convert_single_url(target_url: str, enable_frontmatter: bool = True, tags: 
         }
 
 
-def _discover_internal_pages(root_url: str, max_pages: int = 30) -> list:
+def _discover_internal_pages(root_url: str, max_pages: int = 50) -> list:
     from urllib.parse import urlparse, urljoin
     from bs4 import BeautifulSoup
     import requests
-    from urllib.parse import urlparse, urljoin
-    from bs4 import BeautifulSoup
 
     if not root_url.startswith("http://") and not root_url.startswith("https://"):
         root_url = "https://" + root_url
@@ -355,71 +353,85 @@ def _discover_internal_pages(root_url: str, max_pages: int = 30) -> list:
     )
 
     discovered = []
-    visited = set()
+    visited_urls = set()
+    queue = [root_url]
+    visited_pages_count = 0
+    max_crawl_depth = 5  # 최대 5페이지까지 순회 탐색하여 링크 수집
 
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-        }
-        resp = requests.get(root_url, headers=headers, verify=False, timeout=12)
-        soup = BeautifulSoup(resp.content, "html.parser")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
 
-        root_title = ""
-        if soup.title and soup.title.string:
-            root_title = soup.title.string.strip()
-        if not root_title:
-            root_title = f"{base_domain} (홈페이지)"
+    while queue and len(discovered) < max_pages and visited_pages_count < max_crawl_depth:
+        current_url = queue.pop(0)
+        norm_current = current_url.split("#")[0].rstrip("/")
+        if norm_current in visited_urls:
+            continue
+        visited_urls.add(norm_current)
+        visited_pages_count += 1
 
+        try:
+            resp = requests.get(current_url, headers=headers, verify=False, timeout=8)
+            soup = BeautifulSoup(resp.content, "html.parser")
+
+            if visited_pages_count == 1:
+                root_title = ""
+                if soup.title and soup.title.string:
+                    root_title = soup.title.string.strip()
+                if not root_title:
+                    root_title = f"{base_domain} (홈페이지)"
+                discovered.append({
+                    "url": root_url,
+                    "title": root_title,
+                    "path": parsed_root.path or "/",
+                    "is_root": True
+                })
+
+            for tag in soup.find_all("a", href=True):
+                href = tag["href"].strip()
+                if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
+                    continue
+
+                full_url = urljoin(current_url, href)
+                full_url = full_url.split("#")[0].rstrip("/")
+                if not full_url:
+                    continue
+
+                p = urlparse(full_url)
+                if p.netloc.lower() != base_domain and p.netloc.lower() != f"www.{base_domain}" and f"www.{p.netloc.lower()}" != base_domain:
+                    continue
+
+                if any(p.path.lower().endswith(ext) for ext in skip_extensions):
+                    continue
+
+                if full_url not in visited_urls and not any(d["url"] == full_url for d in discovered):
+                    link_text = tag.get_text(strip=True)
+                    title = link_text if link_text else (p.path.strip("/") or "페이지")
+                    if len(title) > 60:
+                        title = title[:60] + "..."
+                    discovered.append({
+                        "url": full_url,
+                        "title": title,
+                        "path": p.path or "/",
+                        "is_root": False
+                    })
+                    queue.append(full_url)
+
+                    if len(discovered) >= max_pages:
+                        break
+        except Exception as e:
+            logger.warning(f"Error discovering subpages from {current_url}: {e}")
+            continue
+
+    if not discovered:
         discovered.append({
             "url": root_url,
-            "title": root_title,
-            "path": parsed_root.path or "/",
+            "title": root_url,
+            "path": "/",
             "is_root": True
         })
-        visited.add(root_url.rstrip("/"))
-
-        for tag in soup.find_all("a", href=True):
-            href = tag["href"].strip()
-            if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
-                continue
-
-            full_url = urljoin(root_url, href)
-            full_url = full_url.split("#")[0].rstrip("/")
-            if not full_url:
-                continue
-
-            p = urlparse(full_url)
-            if p.netloc.lower() != base_domain and p.netloc.lower() != f"www.{base_domain}" and f"www.{p.netloc.lower()}" != base_domain:
-                continue
-
-            if any(p.path.lower().endswith(ext) for ext in skip_extensions):
-                continue
-
-            if full_url not in visited:
-                visited.add(full_url)
-                link_text = tag.get_text(strip=True)
-                title = link_text if link_text else (p.path.strip("/") or "페이지")
-                if len(title) > 60:
-                    title = title[:60] + "..."
-                discovered.append({
-                    "url": full_url,
-                    "title": title,
-                    "path": p.path or "/",
-                    "is_root": False
-                })
-                if len(discovered) >= max_pages:
-                    break
-    except Exception as e:
-        logger.warning(f"Error discovering subpages from {root_url}: {e}")
-        if not discovered:
-            discovered.append({
-                "url": root_url,
-                "title": root_url,
-                "path": "/",
-                "is_root": True
-            })
 
     return discovered[:max_pages]
 
@@ -431,7 +443,7 @@ def _crawl_internal_urls(root_url: str, max_pages: int = 10) -> list:
 
 class UrlDiscoverRequest(BaseModel):
     url: str
-    max_pages: int = 30
+    max_pages: int = 50
 
 
 @app.post("/api/crawl/discover")
@@ -447,7 +459,7 @@ def discover_subpages(req: UrlDiscoverRequest):
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
 
-    pages = _discover_internal_pages(url, max_pages=min(max(1, req.max_pages), 50))
+    pages = _discover_internal_pages(url, max_pages=min(max(1, req.max_pages), 200))
     from urllib.parse import urlparse
     domain = urlparse(url).netloc
     return {

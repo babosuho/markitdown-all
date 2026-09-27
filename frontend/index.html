@@ -550,6 +550,10 @@
           체크된 페이지만 각각의 마크다운 파일로 일괄 변환됩니다.
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button id="loadMoreSubpagesBtn" onclick="handleLoadMoreSubpages()" class="px-3.5 py-2 rounded-xl bg-violet-950/60 hover:bg-violet-900/60 text-violet-300 border border-violet-700/60 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm" title="추가 하위 페이지를 더 탐색하여 목록에 추가합니다">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            <span id="loadMoreSubpagesBtnText">더 찾기 (+50개)</span>
+          </button>
           <button onclick="closeSubpageModal()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium transition border border-white/[0.06]">
             취소
           </button>
@@ -614,6 +618,6 @@
     All-to-Markdown Studio &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Knowledge Pipelines.
   </footer>
 
-  <script src="app.js?v=1.8.0"></script>
+  <script src="app.js?v=1.8.1"></script>
 </body>
 </html>
