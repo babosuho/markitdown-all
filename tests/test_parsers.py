@@ -73,5 +73,5 @@ def test_vision_pdf_parser_init():
     from backend.parsers.vision_pdf_parser import VisionPdfParser
     parser = VisionPdfParser(api_key="AIzaSy_FAKE_KEY_FOR_TEST")
     assert parser.client is not None
-    assert parser.model == "gemini-2.5-flash"
+    assert parser.model == "gemini-3.8-flash"
 

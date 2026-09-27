@@ -14,7 +14,8 @@ from google.genai import types
 
 
 class VisionPdfParser:
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-3.8-flash"
+    FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
@@ -50,24 +51,22 @@ class VisionPdfParser:
 
         image_part = types.Part.from_bytes(data=png_bytes, mime_type="image/png")
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[image_part, prompt],
-            )
-            return response.text.strip() if response.text else ""
-        except Exception as e:
-            # Fallback to secondary model if primary fails
-            if self.model != "gemini-2.0-flash":
-                try:
-                    response = self.client.models.generate_content(
-                        model="gemini-2.0-flash",
-                        contents=[image_part, prompt],
-                    )
-                    return response.text.strip() if response.text else ""
-                except Exception:
-                    pass
-            return f"> [페이지 {page_num} 변환 오류: {e}]"
+        models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
+        last_error = None
+        for m in models_to_try:
+            try:
+                response = self.client.models.generate_content(
+                    model=m,
+                    contents=[image_part, prompt],
+                )
+                if response.text:
+                    return response.text.strip()
+                return ""
+            except Exception as e:
+                last_error = e
+                continue
+
+        return f"> [페이지 {page_num} 변환 오류: {last_error}]"
 
     def parse(self, source: Union[str, BinaryIO, bytes], max_pages: int = 50) -> str:
         if not self.client:
