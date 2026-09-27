@@ -746,13 +746,13 @@ let activeWorkspaceTab = "files";
 function switchWorkspaceTab(tab) {
   activeWorkspaceTab = tab;
   if (tab === "files") {
-    tabModeFiles.className = "px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition";
-    tabModeUrl.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition";
+    tabModeFiles.className = "px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-md shadow-indigo-600/30 transition-all duration-200";
+    tabModeUrl.className = "px-5 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 font-medium text-xs flex items-center gap-2 transition-all duration-200";
     dropZone.classList.remove("hidden");
     urlInputZone.classList.add("hidden");
   } else {
-    tabModeFiles.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition";
-    tabModeUrl.className = "px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition";
+    tabModeFiles.className = "px-5 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 font-medium text-xs flex items-center gap-2 transition-all duration-200";
+    tabModeUrl.className = "px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-md shadow-indigo-600/30 transition-all duration-200";
     dropZone.classList.add("hidden");
     urlInputZone.classList.remove("hidden");
     if (webUrlInput) webUrlInput.focus();
@@ -1213,14 +1213,16 @@ function renderFileList() {
     const isVision = item.parser_used.includes("Vision");
 
     const card = document.createElement("div");
-    card.className = "bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all";
+    card.className = "glass-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5";
 
     if (!item.success) {
       card.innerHTML = `
         <div class="flex items-center gap-3">
-          <span class="px-2 py-1 rounded text-xs font-bold bg-rose-950 text-rose-400 border border-rose-800">오류</span>
+          <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-950/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>오류
+          </span>
           <div>
-            <div class="font-medium text-slate-300 text-sm">${escapeHtml(item.filename)}</div>
+            <div class="font-semibold text-slate-200 text-sm">${escapeHtml(item.filename)}</div>
             <div class="text-xs text-rose-400 mt-0.5">${escapeHtml(item.error || "알 수 없는 오류")}</div>
           </div>
         </div>
@@ -1231,41 +1233,42 @@ function renderFileList() {
 
     card.innerHTML = `
       <div class="flex items-start sm:items-center gap-3 min-w-0">
-        <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badgeColor.bg} ${badgeColor.text} border ${badgeColor.border} uppercase shrink-0">
-          ${ext}
+        <span class="px-2.5 py-1 rounded-xl text-xs font-bold ${badgeColor.bg} ${badgeColor.text} border ${badgeColor.border} uppercase shrink-0 flex items-center gap-1.5 shadow-sm">
+          <span class="w-1.5 h-1.5 rounded-full ${badgeColor.dot}"></span>${ext}
         </span>
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <span class="font-semibold text-white text-sm truncate">${escapeHtml(item.filename)}</span>
+            <span class="font-bold text-white text-sm truncate tracking-tight">${escapeHtml(item.filename)}</span>
             <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
             <span class="text-xs text-indigo-300 font-mono truncate">${escapeHtml(item.md_filename)}</span>
           </div>
-          <div class="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
-            <span class="${isVision ? 'text-amber-300 font-semibold' : ''}">
-              <i class="fa-solid ${isVision ? 'fa-wand-magic-sparkles text-amber-400' : 'fa-microchip text-slate-500'} mr-1"></i>
+          <div class="flex items-center gap-2.5 mt-1 text-[11px] text-slate-400">
+            <span class="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/[0.05] ${isVision ? 'text-amber-300 font-medium' : ''}">
+              <i class="fa-solid ${isVision ? 'fa-wand-magic-sparkles text-amber-400' : 'fa-microchip text-slate-400'} mr-1"></i>
               ${escapeHtml(item.parser_used)}
             </span>
             <span>•</span>
-            <span>${item.char_count.toLocaleString()}자 (${item.line_count.toLocaleString()}줄)</span>
+            <span class="font-mono text-slate-300">${item.char_count.toLocaleString()}자</span>
+            <span>(${item.line_count.toLocaleString()}줄)</span>
           </div>
         </div>
       </div>
 
       <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-        <button onclick="previewFile(${index})" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1 transition">
+        <button onclick="previewFile(${index})" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition border border-white/[0.05] shadow-sm">
           <i class="fa-solid fa-eye text-slate-400"></i>
           <span>미리보기</span>
         </button>
-        <button onclick="copyContent(${index})" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-xs font-medium flex items-center gap-1 transition">
+        <button onclick="copyContent(${index})" class="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-copy"></i>
           <span>복사</span>
         </button>
-        <button onclick="downloadMdFile(${index})" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1 transition">
+        <button onclick="downloadMdFile(${index})" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-indigo-600 text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-download"></i>
           <span>.md</span>
         </button>
-        <button id="gdriveBtn_${index}" onclick="saveSingleToGdrive(${index})" class="px-2.5 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800/40 text-xs font-medium flex items-center gap-1 transition" title="구글 드라이브에 저장">
-          <i class="fa-brands fa-google-drive"></i>
+        <button id="gdriveBtn_${index}" onclick="saveSingleToGdrive(${index})" class="px-3 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 text-xs font-medium flex items-center gap-1.5 transition shadow-sm" title="구글 드라이브에 저장">
+          <i class="fa-brands fa-google-drive text-[#34A853]"></i>
           <span id="gdriveBtnText_${index}">드라이브</span>
         </button>
       </div>
@@ -1278,22 +1281,22 @@ function renderFileList() {
 function getBadgeColor(ext) {
   switch (ext) {
     case "pdf":
-      return { bg: "bg-red-950/60", text: "text-red-400", border: "border-red-800/60" };
+      return { bg: "bg-red-950/60", text: "text-red-300", border: "border-red-700/60", dot: "bg-red-400" };
     case "docx":
     case "doc":
-      return { bg: "bg-blue-950/60", text: "text-blue-400", border: "border-blue-800/60" };
+      return { bg: "bg-blue-950/60", text: "text-blue-300", border: "border-blue-700/60", dot: "bg-blue-400" };
     case "pptx":
     case "ppt":
-      return { bg: "bg-orange-950/60", text: "text-orange-400", border: "border-orange-800/60" };
+      return { bg: "bg-amber-950/60", text: "text-amber-300", border: "border-amber-700/60", dot: "bg-amber-400" };
     case "xlsx":
     case "xls":
     case "csv":
-      return { bg: "bg-emerald-950/60", text: "text-emerald-400", border: "border-emerald-800/60" };
+      return { bg: "bg-emerald-950/60", text: "text-emerald-300", border: "border-emerald-700/60", dot: "bg-emerald-400" };
     case "hwpx":
     case "hwp":
-      return { bg: "bg-violet-950/60", text: "text-violet-300", border: "border-violet-700/60" };
+      return { bg: "bg-violet-950/60", text: "text-violet-300", border: "border-violet-700/60", dot: "bg-violet-400" };
     default:
-      return { bg: "bg-slate-800", text: "text-slate-300", border: "border-slate-700" };
+      return { bg: "bg-slate-900", text: "text-slate-300", border: "border-slate-700", dot: "bg-slate-400" };
   }
 }
 
@@ -1325,47 +1328,73 @@ function downloadMdFile(index) {
   URL.revokeObjectURL(url);
 }
 
-// Download All as ZIP
+// Download All as ZIP (Client-Side Instant JSZip Bundling)
 downloadAllZipBtn.addEventListener("click", async () => {
-  if (convertedItems.length === 0) return;
+  const successfulItems = convertedItems.filter(item => item && item.success && item.markdown);
+  if (successfulItems.length === 0) {
+    showToast("다운로드할 마크다운 변환 결과가 없습니다.");
+    return;
+  }
 
+  const originalHtml = downloadAllZipBtn.innerHTML;
   downloadAllZipBtn.disabled = true;
-  downloadAllZipBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> 압축 생성 중...`;
+  downloadAllZipBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5 text-indigo-300"></i><span>압축 생성 중...</span>`;
 
   try {
-    if (currentFilesToZip.length > 0) {
-      const formData = new FormData();
-      currentFilesToZip.forEach(file => formData.append("files", file));
-      formData.append("enable_frontmatter", frontmatterToggle.checked);
-      formData.append("tags", frontmatterTags.value.trim());
-
-      const apiKey = localStorage.getItem("GEMINI_API_KEY") || "";
-      formData.append("use_vision", isVisionModeActive);
-      if (apiKey) formData.append("api_key", apiKey);
-
-      const res = await fetch(`${API_BASE}/api/convert/zip`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("ZIP 생성 실패");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "all-converted-markdown.zip";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("전체 ZIP 파일 다운로드가 시작되었습니다.");
+    if (typeof JSZip === "undefined") {
+      throw new Error("JSZip 압축 모듈을 로드하지 못했습니다. 페이지를 새로고침(F5)해 주세요.");
     }
+
+    const zip = new JSZip();
+    const usedNames = new Set();
+
+    successfulItems.forEach((item, idx) => {
+      let fname = item.md_filename || (item.filename ? item.filename.replace(/\.[^/.]+$/, "") + ".md" : `document_${idx + 1}.md`);
+      if (!fname.toLowerCase().endsWith(".md")) {
+        fname += ".md";
+      }
+
+      // Safe filename sanitize & uniqueness
+      fname = fname.replace(/[\\/:*?"<>|]/g, "_");
+      let uniqueName = fname;
+      let count = 1;
+      while (usedNames.has(uniqueName.toLowerCase())) {
+        const base = fname.replace(/\.md$/i, "");
+        uniqueName = `${base}_(${count}).md`;
+        count++;
+      }
+      usedNames.add(uniqueName.toLowerCase());
+
+      zip.file(uniqueName, item.markdown);
+    });
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 }
+    });
+
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    const now = new Date();
+    const dateStr = now.getFullYear() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0') + "_" +
+      String(now.getHours()).padStart(2, '0') +
+      String(now.getMinutes()).padStart(2, '0');
+    a.download = `MarkItDown_문서_${dateStr}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`총 ${successfulItems.length}개의 마크다운 파일이 ZIP으로 즉시 다운로드되었습니다.`);
   } catch (err) {
-    alert("ZIP 다운로드 중 오류: " + err.message);
+    alert("ZIP 다운로드 중 오류 발생: " + err.message);
   } finally {
     downloadAllZipBtn.disabled = false;
-    downloadAllZipBtn.innerHTML = `<i class="fa-solid fa-file-zipper mr-1"></i> 전체 ZIP 다운로드`;
+    downloadAllZipBtn.innerHTML = originalHtml;
   }
 });
 
@@ -1474,3 +1503,29 @@ function escapeHtml(str) {
     }[m];
   });
 }
+
+// Global Clipboard Paste Support (Ctrl + V for files or URL)
+document.addEventListener("paste", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+  const clipboardData = e.clipboardData || window.clipboardData;
+  if (!clipboardData) return;
+
+  // Check for pasted files
+  if (clipboardData.files && clipboardData.files.length > 0) {
+    handleFiles(Array.from(clipboardData.files));
+    showToast(`${clipboardData.files.length}개의 파일이 클립보드에서 추가되었습니다.`);
+    return;
+  }
+
+  // Check for pasted URL
+  const pastedText = (clipboardData.getData("text") || "").trim();
+  if (pastedText.startsWith("http://") || pastedText.startsWith("https://")) {
+    switchWorkspaceTab("url");
+    if (webUrlInput) {
+      webUrlInput.value = pastedText;
+      showToast("웹페이지 URL이 입력창에 자동 입력되었습니다.");
+      webUrlInput.focus();
+    }
+  }
+});

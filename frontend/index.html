@@ -7,209 +7,239 @@
   
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#07090e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="All2MD">
   <link rel="apple-touch-icon" href="icon-192.png">
 
+  <!-- Core Scripts & Libraries -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+<body class="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
 
-  <!-- Top Navigation -->
-  <nav class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-30">
+  <!-- Top Navigation Bar -->
+  <nav class="border-b border-white/[0.07] bg-[#07090e]/80 backdrop-blur-xl sticky top-0 z-30 transition-all">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-          <i class="fa-solid fa-file-lines text-lg"></i>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 border border-white/20">
+          <i class="fa-solid fa-file-lines text-base"></i>
         </div>
         <div>
-          <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">All-to-Markdown</span>
-          <span class="text-[10px] ml-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">Smart Router</span>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-base tracking-tight text-white">All-to-Markdown</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold tracking-wide">STUDIO</span>
+          </div>
+          <div class="text-[10px] text-slate-400 hidden sm:block">Obsidian & AI Pipeline Ready</div>
         </div>
       </div>
       
-      <div class="flex items-center gap-2 sm:gap-3 text-xs">
+      <!-- Quick Status & Utility Controls -->
+      <div class="flex items-center gap-2 sm:gap-2.5 text-xs">
+        
         <!-- PWA Install Button -->
-        <button id="pwaInstallBtn" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm transition">
+        <button id="pwaInstallBtn" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/30 transition">
           <i class="fa-solid fa-download text-xs"></i>
           <span class="hidden sm:inline">앱 설치</span>
         </button>
 
-        <!-- Token Quota Button -->
-        <button id="tokenQuotaBtn" onclick="openTokenModal()" class="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer" title="Gemini API 토큰 사용량 및 무료 플랜 한도">
-          <i class="fa-solid fa-bolt text-amber-400"></i>
-          <span id="tokenQuotaBadge" class="font-mono font-medium">1,500/1,500</span>
+        <!-- Gemini Token Quota Button -->
+        <button id="tokenQuotaBtn" onclick="openTokenModal()" class="flex items-center gap-1.5 text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-white/[0.08] hover:border-slate-700 transition cursor-pointer shadow-sm" title="Gemini API 일일 무료 쿼터 및 실시간 사용량">
+          <i class="fa-solid fa-bolt text-amber-400 text-xs"></i>
+          <span id="tokenQuotaBadge" class="font-mono text-xs font-semibold">1,500/1,500</span>
         </button>
 
-        <button onclick="openServerModal()" class="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer" title="백엔드 API 서버 주소 변경">
-          <i class="fa-solid fa-server text-emerald-400"></i>
-          <span id="backendStatus">연결 확인 중...</span>
+        <!-- Backend Health & Server Config -->
+        <button onclick="openServerModal()" class="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-white/[0.08] hover:border-slate-700 transition cursor-pointer shadow-sm" title="백엔드 API 서버 주소 변경 및 연결 상태">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="backendStatus" class="font-medium text-xs">연결 확인 중...</span>
           <i class="fa-solid fa-gear text-[10px] text-slate-500 ml-0.5"></i>
         </button>
-        <a href="dashboard.html" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-chart-line text-indigo-400"></i>
-          <span class="hidden sm:inline">대시보드</span>
+
+        <!-- Dashboard Link -->
+        <a href="dashboard.html" target="_blank" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/[0.08] hover:border-slate-700 flex items-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-chart-pie text-indigo-400"></i>
+          <span class="hidden sm:inline font-medium">대시보드</span>
         </a>
       </div>
     </div>
   </nav>
 
-  <!-- Hero & Main Workspace -->
+  <!-- Main Container -->
   <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
 
     <!-- Hero Header -->
-    <div class="text-center max-w-2xl mx-auto pt-2 pb-4">
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
-        문서와 웹페이지를 깨끗한 <span class="text-indigo-400">마크다운</span>으로
+    <div class="text-center max-w-2xl mx-auto pt-2 pb-2 space-y-2">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium shadow-inner">
+        <i class="fa-solid fa-sparkles text-amber-400"></i>
+        <span>차세대 문서 & 웹페이지 마크다운 엔진</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+        모든 문서를 가장 깨끗한 <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-300 to-indigo-200">GFM 마크다운</span>으로
       </h1>
-      <p class="text-sm text-slate-400">
-        HWPX(한글), PDF, Word, Excel, <strong>웹 URL</strong>까지 최적 라우터로 자동 변환하여<br class="hidden sm:inline"> 옵시디언(Obsidian) 보관함과 AI 파이프라인으로 즉시 활용하세요.
+      <p class="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+        HWPX(한글), PDF, Office 문서와 웹 URL(Firecrawl 방식)을 완벽한 표(Table)와 서식으로 복원하여 옵시디언 및 AI 지식 저장소로 연결합니다.
       </p>
     </div>
 
-    <!-- Workspace Mode Tabs -->
-    <div class="flex items-center gap-2 border-b border-slate-800/80 pb-2">
-      <button id="tabModeFiles" onclick="switchWorkspaceTab('files')" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-sm shadow-indigo-500/20 transition">
-        <i class="fa-solid fa-folder-open"></i>
-        <span>파일 문서 변환 (HWPX, PDF, Office)</span>
-      </button>
-      <button id="tabModeUrl" onclick="switchWorkspaceTab('url')" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-xs flex items-center gap-2 border border-slate-800 transition">
-        <i class="fa-solid fa-globe text-indigo-400"></i>
-        <span>웹페이지 URL 변환 (Firecrawl)</span>
-      </button>
+    <!-- Segmented Mode Controller -->
+    <div class="flex justify-center">
+      <div class="segmented-control inline-flex items-center gap-1 p-1 bg-slate-900/90 border border-white/[0.08] rounded-2xl shadow-inner backdrop-blur-md">
+        <button id="tabModeFiles" onclick="switchWorkspaceTab('files')" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs flex items-center gap-2 shadow-md shadow-indigo-600/30 transition-all duration-200">
+          <i class="fa-solid fa-folder-open text-sm"></i>
+          <span>파일 일괄 변환 (HWPX, PDF, Office)</span>
+        </button>
+        <button id="tabModeUrl" onclick="switchWorkspaceTab('url')" class="px-5 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 font-medium text-xs flex items-center gap-2 transition-all duration-200">
+          <i class="fa-solid fa-globe text-indigo-400 text-sm"></i>
+          <span>웹페이지 URL 변환 (Firecrawl)</span>
+        </button>
+      </div>
     </div>
 
     <!-- Webpage URL Input Zone (Firecrawl style) -->
-    <div id="urlInputZone" class="hidden border-2 border-slate-800 bg-slate-900/60 rounded-2xl p-6 sm:p-10 space-y-4">
+    <div id="urlInputZone" class="hidden glass-panel rounded-2xl p-6 sm:p-8 space-y-4">
       <div class="text-center max-w-xl mx-auto space-y-1">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold mb-1">
-          <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20 text-[11px] font-semibold">
+          <i class="fa-solid fa-network-wired text-violet-400"></i>
           <span>Firecrawl 스타일 웹페이지 수집기</span>
         </div>
-        <h2 class="text-lg font-bold text-white">웹페이지 URL을 옵시디언 마크다운으로 추출</h2>
-        <p class="text-xs text-slate-400">블로그, 뉴스 기사, 개발 문서 URL을 넣으면 광고와 노이즈를 걷어내고 본문만 정리합니다.</p>
+        <h2 class="text-base sm:text-lg font-bold text-white">웹페이지 URL을 옵시디언 마크다운으로 추출</h2>
+        <p class="text-xs text-slate-400">광고와 불필요한 레이아웃을 걷어내고 순수한 본문 콘텐츠와 메타데이터만 추출합니다.</p>
       </div>
 
-      <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-2 pt-2">
+      <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-2 pt-1">
         <div class="relative w-full">
           <i class="fa-solid fa-link absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-          <input type="url" id="webUrlInput" placeholder="https://example.com/article..." class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none font-mono">
+          <input type="url" id="webUrlInput" placeholder="https://example.com/article..." class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none font-mono transition shadow-inner">
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <button id="convertUrlBtn" onclick="handleUrlConvert()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm" title="입력한 단일 웹페이지를 즉시 마크다운으로 변환">
+          <button id="convertUrlBtn" onclick="handleUrlConvert()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-indigo-600/30" title="입력한 단일 웹페이지를 즉시 마크다운으로 변환">
             <i class="fa-solid fa-arrow-down-to-bracket"></i>
             <span id="convertUrlBtnText">페이지 변환</span>
           </button>
-          <button id="discoverSubpagesBtn" onclick="handleDiscoverSubpages()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm" title="웹사이트 내부 하위 페이지들을 탐색하고 원하는 페이지만 선택하여 일괄 변환">
+          <button id="discoverSubpagesBtn" onclick="handleDiscoverSubpages()" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-600 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-violet-700/30" title="웹사이트 내부 하위 페이지들을 탐색하고 원하는 페이지만 선택하여 일괄 변환">
             <i class="fa-solid fa-sitemap text-amber-300"></i>
             <span id="discoverSubpagesBtnText">하위 페이지 탐색 & 선택</span>
           </button>
         </div>
       </div>
 
-      <!-- Subpage Info & Samples -->
-      <div class="max-w-2xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 pt-0.5">
-        <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
-          <i class="fa-solid fa-circle-info text-indigo-400"></i>
-          <span>홈페이지 주소 입력 후 <strong>[하위 페이지 탐색 & 선택]</strong>을 누르면 전체 페이지 목록을 보고 선택 변환할 수 있습니다.</span>
-        </div>
-      </div>
-
-      <!-- Sample quick test URLs -->
-      <div class="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-1">
-        <span>빠른 테스트:</span>
-        <button onclick="setSampleUrl('https://ko.wikipedia.org/wiki/%EB%A7%88%ED%81%AC%EB%8B%A4%EC%9A%B4')" class="underline hover:text-indigo-400">위키백과 (마크다운)</button>
-        <span>•</span>
-        <button onclick="setSampleUrl('https://news.ycombinator.com')" class="underline hover:text-indigo-400">Hacker News</button>
+      <!-- Quick Test Sample URLs -->
+      <div class="max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 pt-1">
+        <span class="text-[11px] text-slate-500">빠른 테스트:</span>
+        <button onclick="setSampleUrl('https://ko.wikipedia.org/wiki/%EB%A7%88%ED%81%AC%EB%8B%A4%EC%9A%B4')" class="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-indigo-300 text-[11px] transition border border-white/[0.05]">위키백과 (마크다운)</button>
+        <button onclick="setSampleUrl('https://news.ycombinator.com')" class="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-indigo-300 text-[11px] transition border border-white/[0.05]">Hacker News</button>
+        <button onclick="setSampleUrl('https://www.bepa.kr/')" class="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-indigo-300 text-[11px] transition border border-white/[0.05]">부산경제진흥원 (공공기관)</button>
       </div>
     </div>
 
-    <!-- Drop Zone -->
-    <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/50 hover:bg-indigo-950/20 rounded-2xl p-8 sm:p-12 text-center transition-all cursor-pointer relative group">
+    <!-- Drop Zone Canvas -->
+    <div id="dropZone" class="dropzone-canvas rounded-2xl p-8 sm:p-12 text-center transition-all cursor-pointer relative group">
       <input type="file" id="fileInput" multiple class="hidden" accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.hwpx,.txt,.csv,.json,.xml,.md">
       
-      <div class="flex flex-col items-center justify-center space-y-3">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-600/10 group-hover:bg-indigo-600/20 text-indigo-400 group-hover:scale-110 flex items-center justify-center transition-all duration-300">
-          <i class="fa-solid fa-cloud-arrow-up text-3xl"></i>
+      <div class="flex flex-col items-center justify-center space-y-3.5">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-600/15 group-hover:bg-indigo-600/25 border border-indigo-500/30 text-indigo-400 group-hover:scale-105 flex items-center justify-center transition-all duration-300 shadow-lg shadow-indigo-500/10">
+          <i class="fa-solid fa-cloud-arrow-up text-2xl group-hover:-translate-y-0.5 transition-transform"></i>
         </div>
         <div class="space-y-1">
-          <div class="text-base font-semibold text-white">파일을 드래그하거나 클릭하여 업로드하세요</div>
-          <div class="text-xs text-slate-400">1개 또는 수십 개의 파일을 한꺼번에 넣을 수 있습니다</div>
+          <div class="text-base font-bold text-white tracking-tight">문서 파일을 끌어다 놓거나 클릭하여 선택하세요</div>
+          <div class="text-xs text-slate-400">1개 또는 수십 개의 파일을 한꺼번에 드래그 앤 드롭할 수 있습니다 (클립보드 붙여넣기 지원)</div>
         </div>
-        <div class="flex flex-wrap items-center justify-center gap-1.5 pt-2 text-[11px] text-slate-400">
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">PDF</span>
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">DOCX</span>
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">PPTX</span>
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">XLSX</span>
-          <span class="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-semibold">HWPX</span>
-          <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">TXT/CSV/JSON</span>
+        
+        <!-- Format Badges with Micro-dots -->
+        <div class="flex flex-wrap items-center justify-center gap-2 pt-2 text-[11px]">
+          <span class="px-2.5 py-1 rounded-lg bg-violet-950/60 text-violet-300 border border-violet-700/60 font-semibold flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>HWPX (한글)
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-red-950/60 text-red-300 border border-red-700/60 font-semibold flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>PDF
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-blue-950/60 text-blue-300 border border-blue-700/60 font-semibold flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>DOCX
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-amber-950/60 text-amber-300 border border-amber-700/60 font-semibold flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>PPTX
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-950/60 text-emerald-300 border border-emerald-700/60 font-semibold flex items-center gap-1.5 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>XLSX / CSV
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-700 flex items-center gap-1.5 shadow-sm">
+            TXT / JSON / HTML
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Options Bar -->
-    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-      <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
-        <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300">
-          <input type="checkbox" id="frontmatterToggle" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-0">
-          <span>옵시디언 YAML Frontmatter</span>
+    <!-- Options & Actions Toolbar -->
+    <div class="glass-panel rounded-2xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4 text-xs">
+      
+      <!-- Left Options: Frontmatter & Vision AI -->
+      <div class="flex flex-wrap items-center gap-3.5 w-full lg:w-auto">
+        
+        <!-- Obsidian YAML Frontmatter Switch -->
+        <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white transition">
+          <input type="checkbox" id="frontmatterToggle" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-0">
+          <span class="font-medium">옵시디언 Frontmatter</span>
         </label>
         
-        <div class="flex items-center gap-1.5 text-slate-400">
-          <span>태그:</span>
-          <input type="text" id="frontmatterTags" value="document, all-to-markdown" class="bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs">
+        <!-- Tags Input -->
+        <div class="flex items-center gap-1.5 text-slate-400 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-white/[0.06]">
+          <span class="text-[11px]">태그:</span>
+          <input type="text" id="frontmatterTags" value="document, all-to-markdown" class="bg-transparent border-0 text-slate-200 placeholder-slate-500 focus:outline-none text-xs w-44 font-mono">
         </div>
 
-        <!-- Vision AI Mode Toggle -->
-        <div class="flex items-center gap-1.5 pl-2 border-l border-slate-700/80">
-          <button id="visionToggleBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 flex items-center gap-1.5 transition font-medium">
+        <!-- Vision AI Mode Toggle & Key Config -->
+        <div class="flex items-center gap-1.5 pl-2 border-l border-white/[0.08]">
+          <button id="visionToggleBtn" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5 transition font-medium">
             <i class="fa-solid fa-wand-magic-sparkles text-slate-500" id="visionIcon"></i>
             <span id="visionToggleLabel">비전 AI(이미지/슬라이드): OFF</span>
           </button>
-          <button id="apiKeySettingsBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition" title="Gemini API Key 설정">
+          <button id="apiKeySettingsBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition" title="Gemini API Key 설정">
             <i class="fa-solid fa-key"></i>
           </button>
         </div>
 
         <!-- Google Drive Integration Button -->
-        <div class="flex items-center gap-1.5 pl-2 border-l border-slate-700/80">
-          <button id="gdriveSettingsBtn" onclick="openGdriveModal()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition flex items-center gap-1.5" title="구글 드라이브 특정 폴더 저장 설정">
+        <div class="flex items-center gap-1.5 pl-2 border-l border-white/[0.08]">
+          <button id="gdriveSettingsBtn" onclick="openGdriveModal()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5" title="구글 드라이브 특정 폴더 저장 설정">
             <i class="fa-brands fa-google-drive text-[#34A853]"></i>
-            <span id="gdriveBtnLabel" class="hidden md:inline">드라이브 설정</span>
+            <span id="gdriveBtnLabel" class="hidden sm:inline font-medium">드라이브 설정</span>
           </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-        <button id="uploadAllGdriveBtn" onclick="uploadAllToGdrive()" disabled class="px-3.5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm text-xs" title="변환된 마크다운을 구글 드라이브 폴더로 저장">
+      <!-- Right Actions: Batch Drive, Download All ZIP, Clear -->
+      <div class="flex items-center gap-2 w-full lg:w-auto justify-end shrink-0">
+        <button id="uploadAllGdriveBtn" onclick="uploadAllToGdrive()" disabled class="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-900 disabled:text-slate-600 disabled:border-slate-800 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm text-xs border border-emerald-700/60" title="변환된 마크다운을 구글 드라이브 폴더로 저장">
           <i class="fa-brands fa-google-drive"></i>
           <span id="uploadAllGdriveText">드라이브 전체 저장</span>
         </button>
-        <button id="downloadAllZipBtn" disabled class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-1.5 transition shadow-sm">
+        <button id="downloadAllZipBtn" disabled class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-900 disabled:text-slate-600 disabled:border-slate-800 disabled:cursor-not-allowed text-white font-semibold flex items-center gap-1.5 transition shadow-md shadow-indigo-600/30 text-xs border border-indigo-500/30">
           <i class="fa-solid fa-file-zipper"></i>
           <span>전체 ZIP 다운로드</span>
         </button>
-        <button id="clearAllBtn" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-trash-can mr-1"></i> 목록 비우기
+        <button id="clearAllBtn" class="px-3 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-white/[0.06] transition text-xs">
+          <i class="fa-solid fa-trash-can"></i>
         </button>
       </div>
     </div>
 
     <!-- Conversion Results Section -->
-    <div id="resultsSection" class="space-y-3 hidden">
+    <div id="resultsSection" class="space-y-3.5 hidden">
       <div class="flex items-center justify-between px-1">
         <div class="text-sm font-bold text-white flex items-center gap-2">
-          <span>변환 목록</span>
-          <span id="resultCountBadge" class="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-indigo-400 border border-slate-700">0건</span>
+          <span>변환된 문서 목록</span>
+          <span id="resultCountBadge" class="px-2.5 py-0.5 rounded-full text-xs bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono font-semibold">0건</span>
         </div>
-        <div id="loadingIndicator" class="hidden items-center gap-2 text-xs text-indigo-400">
+        <div id="loadingIndicator" class="hidden items-center gap-2 text-xs text-indigo-400 bg-indigo-950/40 px-3 py-1 rounded-full border border-indigo-800/40">
           <i class="fa-solid fa-spinner fa-spin"></i>
-          <span>변환 중입니다...</span>
+          <span>문서를 분석하고 변환 중입니다...</span>
         </div>
       </div>
 
@@ -222,15 +252,17 @@
   </main>
 
   <!-- Backend Server Settings Modal -->
-  <div id="serverModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-2 font-bold text-white text-base">
-          <i class="fa-solid fa-server text-emerald-400"></i>
+  <div id="serverModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/90 border border-white/[0.1] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div class="flex items-center gap-2.5 font-bold text-white text-base">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i class="fa-solid fa-server text-sm"></i>
+          </div>
           <span>백엔드 API 서버 설정</span>
         </div>
-        <button onclick="closeServerModal()" class="text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closeServerModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
@@ -242,14 +274,14 @@
 
       <div class="space-y-1.5">
         <label class="text-xs font-semibold text-slate-300">API Server URL</label>
-        <input type="text" id="apiServerUrlInput" placeholder="https://my-backend-api.onrender.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
+        <input type="text" id="apiServerUrlInput" placeholder="https://my-backend-api.up.railway.app" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono shadow-inner">
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-        <button onclick="resetServerUrl()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition">
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.08]">
+        <button onclick="resetServerUrl()" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition border border-white/[0.06]">
           현재 호스트로 초기화
         </button>
-        <button onclick="saveServerUrl()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-sm">
+        <button onclick="saveServerUrl()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-md shadow-indigo-600/30">
           저장하기
         </button>
       </div>
@@ -257,15 +289,17 @@
   </div>
 
   <!-- Gemini API Key Modal -->
-  <div id="apiKeyModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-2 font-bold text-white text-base">
-          <i class="fa-solid fa-key text-indigo-400"></i>
+  <div id="apiKeyModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/90 border border-white/[0.1] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div class="flex items-center gap-2.5 font-bold text-white text-base">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i class="fa-solid fa-key text-sm"></i>
+          </div>
           <span>Gemini API Key 설정</span>
         </div>
-        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closeApiKeyModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
@@ -273,14 +307,14 @@
         <p>
           슬라이드 및 이미지 기반 PDF의 시각적 텍스트와 UI 경로를 분석하기 위해 Gemini API Key가 필요합니다.
         </p>
-        <div id="apiKeyServerNotice" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+        <div id="apiKeyServerNotice" class="p-2.5 rounded-xl bg-slate-950/80 border border-white/[0.06] text-[11px] text-slate-400">
           서버 상태 확인 중...
         </div>
       </div>
 
       <div class="space-y-1.5">
         <label class="text-xs font-semibold text-slate-300">Google Gemini API Key</label>
-        <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
+        <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono shadow-inner">
       </div>
 
       <div class="flex items-center justify-between text-[11px] text-indigo-400 pt-1">
@@ -290,11 +324,11 @@
         </a>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-        <button onclick="clearApiKey()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs transition">
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.08]">
+        <button onclick="clearApiKey()" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 text-xs transition border border-white/[0.06]">
           키 삭제
         </button>
-        <button onclick="saveApiKey()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-sm">
+        <button onclick="saveApiKey()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-md shadow-indigo-600/30">
           저장하기
         </button>
       </div>
@@ -302,15 +336,17 @@
   </div>
 
   <!-- Google Drive Settings Modal -->
-  <div id="gdriveModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 animate-fade-in max-h-[92vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-2 font-bold text-white text-base">
-          <i class="fa-brands fa-google-drive text-[#34A853] text-lg"></i>
+  <div id="gdriveModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/90 border border-white/[0.1] rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 animate-fade-in max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div class="flex items-center gap-2.5 font-bold text-white text-base">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i class="fa-brands fa-google-drive text-[#34A853] text-base"></i>
+          </div>
           <span>구글 드라이브 특정 폴더 저장 설정</span>
         </div>
-        <button onclick="closeGdriveModal()" class="text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closeGdriveModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
@@ -320,7 +356,7 @@
         </p>
 
         <!-- Auto Save Toggle -->
-        <label class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800 cursor-pointer select-none hover:border-slate-700 transition">
+        <label class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-white/[0.08] cursor-pointer select-none hover:border-slate-700 transition">
           <input type="checkbox" id="gdriveAutoSaveToggle" class="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-0">
           <div>
             <div class="font-semibold text-slate-200">변환 완료 시 구글 드라이브로 자동 저장</div>
@@ -334,7 +370,7 @@
             <span>Google Apps Script 웹훅 URL</span>
             <span id="gdriveStatusBadge" class="text-[10px] text-slate-500 font-normal">미등록</span>
           </div>
-          <input type="url" id="gdriveWebhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+          <input type="url" id="gdriveWebhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono shadow-inner">
         </div>
 
         <!-- Verified Folder Info Banner -->
@@ -354,13 +390,13 @@
         </div>
 
         <!-- Guide & Code Accordion -->
-        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+        <div class="p-3.5 rounded-xl bg-slate-950/80 border border-white/[0.08] space-y-2.5">
           <div class="flex items-center justify-between">
             <span class="font-semibold text-emerald-400 flex items-center gap-1.5">
               <i class="fa-solid fa-circle-question"></i>
               <span>1분 완성: 나만의 웹훅 URL 만드는 법</span>
             </span>
-            <button onclick="copyGasScript()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] flex items-center gap-1 transition border border-slate-700">
+            <button onclick="copyGasScript()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] flex items-center gap-1 transition border border-white/[0.08]">
               <i class="fa-solid fa-copy text-indigo-400"></i>
               <span id="copyGasText">스크립트 복사</span>
             </button>
@@ -368,24 +404,24 @@
           <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-400 leading-relaxed">
             <li><a href="https://script.new" target="_blank" class="text-indigo-400 underline font-medium hover:text-indigo-300">script.new (Google Apps Script)</a> 새 창 열기</li>
             <li>기존 코드를 지우고 우측 <b>[스크립트 복사]</b>한 코드를 붙여넣기</li>
-            <li>코드 상단 <code class="text-amber-300">FOLDER_ID</code>에 저장할 구글드라이브 폴더 ID 입력 (비워두면 드라이브 최상단 저장)</li>
-            <li>우측 상단 <b>[배포] → [새 배포]</b> 클릭</li>
+            <li>코드 상단 <code class="text-amber-300">FOLDER_ID</code>에 저장할 구글드라이브 폴더 ID 입력</li>
+            <li>우측 상단 <b>[배포] → [새 배포]</b> 클릭 (코드 수정 시 반드시 <b>[배포 관리] → [신규 버전]</b>으로 배포)</li>
             <li>유형: <b>웹 앱</b> 선택 → 액세스 권한: <b>모든 사용자(Anyone)</b> 선택 후 배포</li>
             <li>발급된 <b>웹 앱 URL</b>을 복사하여 위 입력창에 넣고 [저장하기] 클릭!</li>
           </ol>
         </div>
       </div>
 
-      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
-        <button onclick="testGdriveConnection()" id="gdriveTestBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 transition">
+      <div class="flex items-center justify-between pt-3 border-t border-white/[0.08]">
+        <button onclick="testGdriveConnection()" id="gdriveTestBtn" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 transition border border-white/[0.06]">
           <i class="fa-solid fa-paper-plane text-emerald-400"></i>
           <span>연결 테스트</span>
         </button>
         <div class="flex items-center gap-2">
-          <button onclick="clearGdriveWebhook()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs transition">
+          <button onclick="clearGdriveWebhook()" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 text-xs transition border border-white/[0.06]">
             삭제
           </button>
-          <button onclick="saveGdriveWebhook()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm">
+          <button onclick="saveGdriveWebhook()" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition shadow-md shadow-emerald-600/30">
             저장하기
           </button>
         </div>
@@ -394,46 +430,48 @@
   </div>
 
   <!-- Gemini Token / Quota Modal -->
-  <div id="tokenModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-2 font-bold text-white text-base">
-          <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+  <div id="tokenModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/90 border border-white/[0.1] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div class="flex items-center gap-2.5 font-bold text-white text-base">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i class="fa-solid fa-bolt text-sm"></i>
+          </div>
           <span>Gemini API 토큰 & 사용량 현황</span>
         </div>
-        <button onclick="closeTokenModal()" class="text-slate-400 hover:text-white transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closeTokenModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
       <!-- Stats Grid -->
       <div class="grid grid-cols-3 gap-2.5 text-center">
-        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+        <div class="p-3 rounded-xl bg-slate-950/80 border border-white/[0.06]">
           <div class="text-[11px] text-slate-400 mb-1">잔여 무료 요청</div>
-          <div id="statRemainingQuota" class="text-base sm:text-lg font-extrabold text-emerald-400 font-mono">1,500/1,500</div>
+          <div id="statRemainingQuota" class="text-base font-extrabold text-emerald-400 font-mono">1,500/1,500</div>
         </div>
-        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+        <div class="p-3 rounded-xl bg-slate-950/80 border border-white/[0.06]">
           <div class="text-[11px] text-slate-400 mb-1">오늘 변환 요청</div>
-          <div id="statTodayRequests" class="text-base sm:text-lg font-extrabold text-white">0회</div>
+          <div id="statTodayRequests" class="text-base font-extrabold text-white">0회</div>
         </div>
-        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+        <div class="p-3 rounded-xl bg-slate-950/80 border border-white/[0.06]">
           <div class="text-[11px] text-slate-400 mb-1">오늘 누적 토큰</div>
-          <div id="statTodayTokens" class="text-base sm:text-lg font-extrabold text-amber-400">~0</div>
+          <div id="statTodayTokens" class="text-base font-extrabold text-amber-400">~0</div>
         </div>
       </div>
 
       <!-- Official Free Quota Limits -->
-      <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+      <div class="p-3.5 rounded-xl bg-slate-950/80 border border-white/[0.06] space-y-2 text-xs">
         <div class="font-semibold text-slate-200 flex items-center gap-1.5">
           <i class="fa-solid fa-shield-halved text-indigo-400"></i>
           <span>Gemini 2.5 Flash 무료 플랜 공식 한도</span>
         </div>
         <div class="space-y-1.5 text-[11px] text-slate-400">
-          <div class="flex justify-between py-0.5 border-b border-slate-800/60">
+          <div class="flex justify-between py-0.5 border-b border-white/[0.05]">
             <span>분당 요청 한도 (RPM)</span>
             <span class="font-mono text-slate-200">최대 15 RPM</span>
           </div>
-          <div class="flex justify-between py-0.5 border-b border-slate-800/60">
+          <div class="flex justify-between py-0.5 border-b border-white/[0.05]">
             <span>하루 요청 한도 (RPD)</span>
             <span class="font-mono text-emerald-400 font-semibold">최대 1,500 RPD</span>
           </div>
@@ -445,7 +483,7 @@
       </div>
 
       <!-- Google AI Studio Link -->
-      <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-900/60 space-y-1 text-xs">
+      <div class="p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/20 space-y-1 text-xs">
         <div class="text-slate-300">구글의 실시간 잔여 쿼터 및 청구 대시보드는 Google AI Studio에서 직접 확인하실 수 있습니다:</div>
         <a href="https://aistudio.google.com/app/plan_information" target="_blank" class="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-semibold mt-1">
           <span>Google AI Studio 사용량 대시보드 바로가기</span>
@@ -453,11 +491,11 @@
         </a>
       </div>
 
-      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+      <div class="flex items-center justify-between pt-2 border-t border-white/[0.08]">
         <button onclick="resetTokenCounter()" class="text-xs text-slate-500 hover:text-rose-400 transition">
           오늘 카운터 초기화
         </button>
-        <button onclick="closeTokenModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+        <button onclick="closeTokenModal()" class="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-medium transition border border-white/[0.06]">
           닫기
         </button>
       </div>
@@ -465,35 +503,37 @@
   </div>
 
   <!-- Subpage Selection Modal -->
-  <div id="subpageSelectModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+  <div id="subpageSelectModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/95 border border-white/[0.1] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
       
       <!-- Modal Header -->
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+      <div class="p-4 border-b border-white/[0.08] flex items-center justify-between bg-slate-900/60">
         <div class="flex items-center gap-2.5">
-          <i class="fa-solid fa-sitemap text-amber-400 text-lg"></i>
+          <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i class="fa-solid fa-sitemap text-base"></i>
+          </div>
           <div>
             <div class="font-bold text-sm text-white flex items-center gap-2">
               <span>하위 페이지 탐색 결과</span>
-              <span id="subpageCountBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold font-mono">0개 발견</span>
+              <span id="subpageCountBadge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold font-mono">0개 발견</span>
             </div>
             <div id="subpageBaseDomainText" class="text-[11px] text-slate-400 truncate max-w-sm">도메인</div>
           </div>
         </div>
-        <button onclick="closeSubpageModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+        <button onclick="closeSubpageModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
       <!-- Filter & Quick Action Bar -->
-      <div class="p-3 border-b border-slate-800 bg-slate-950/60 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+      <div class="p-3 border-b border-white/[0.08] bg-slate-950/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
         <div class="relative w-full sm:w-72">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-          <input type="text" id="subpageFilterInput" oninput="filterSubpagesList()" placeholder="페이지 제목 또는 URL 검색..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+          <input type="text" id="subpageFilterInput" oninput="filterSubpagesList()" placeholder="페이지 제목 또는 URL 검색..." class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 shadow-inner">
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button onclick="toggleSelectAllSubpages(true)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">전체 선택</button>
-          <button onclick="toggleSelectAllSubpages(false)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">전체 해제</button>
+          <button onclick="toggleSelectAllSubpages(true)" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition border border-white/[0.06]">전체 선택</button>
+          <button onclick="toggleSelectAllSubpages(false)" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition border border-white/[0.06]">전체 해제</button>
           <span class="text-slate-600">|</span>
           <span class="text-slate-400 text-xs">선택: <strong id="subpageSelectedCount" class="text-indigo-400 font-mono">0</strong>개</span>
         </div>
@@ -505,15 +545,15 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="p-4 border-t border-slate-800 bg-slate-900/90 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="p-4 border-t border-white/[0.08] bg-slate-900/60 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="text-[11px] text-slate-400 text-center sm:text-left">
           체크된 페이지만 각각의 마크다운 파일로 일괄 변환됩니다.
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button onclick="closeSubpageModal()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+          <button onclick="closeSubpageModal()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium transition border border-white/[0.06]">
             취소
           </button>
-          <button id="convertSelectedSubpagesBtn" onclick="convertSelectedSubpages()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-sm">
+          <button id="convertSelectedSubpagesBtn" onclick="convertSelectedSubpages()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-md shadow-indigo-600/30">
             <i class="fa-solid fa-file-arrow-down"></i>
             <span id="convertSelectedSubpagesBtnText">선택한 페이지 변환 시작</span>
           </button>
@@ -524,27 +564,31 @@
   </div>
 
   <!-- Markdown Preview Modal -->
-  <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+  <div id="previewModal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-[#0d1322]/95 border border-white/[0.1] rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
       
       <!-- Modal Header -->
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-        <div class="flex items-center gap-3">
-          <i class="fa-solid fa-file-lines text-indigo-400"></i>
-          <span id="modalFilename" class="font-bold text-sm text-white truncate max-w-md">파일명</span>
+      <div class="p-4 border-b border-white/[0.08] flex items-center justify-between bg-slate-900/60">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i class="fa-solid fa-file-lines text-sm"></i>
+          </div>
+          <span id="modalFilename" class="font-bold text-sm text-white truncate max-w-md font-mono">파일명</span>
         </div>
         
         <div class="flex items-center gap-2">
           <!-- Toggle View -->
-          <div class="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
-            <button id="previewTabRendered" onclick="setPreviewTab('rendered')" class="px-3 py-1 rounded-md bg-indigo-600 text-white font-medium">렌더링</button>
-            <button id="previewTabRaw" onclick="setPreviewTab('raw')" class="px-3 py-1 rounded-md text-slate-400 hover:text-white font-medium">원본 텍스트</button>
+          <div class="flex bg-slate-900/90 rounded-xl p-0.5 border border-white/[0.08] text-xs">
+            <button id="previewTabRendered" onclick="setPreviewTab('rendered')" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow-sm">렌더링</button>
+            <button id="previewTabRaw" onclick="setPreviewTab('raw')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">원본 Markdown</button>
           </div>
-          <button id="modalCopyBtn" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition">
+          
+          <button id="modalCopyBtn" onclick="copyModalContent()" class="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
             <i class="fa-solid fa-copy"></i>
             <span>복사</span>
           </button>
-          <button onclick="closePreviewModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          
+          <button onclick="closePreviewModal()" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition border border-white/[0.05]">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
@@ -553,23 +597,23 @@
       <!-- Modal Body -->
       <div class="p-6 overflow-y-auto flex-1 font-mono text-xs">
         <div id="modalRenderedView" class="prose prose-invert max-w-none font-sans text-sm"></div>
-        <pre id="modalRawView" class="hidden text-slate-300 whitespace-pre-wrap font-mono leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto"></pre>
+        <pre id="modalRawView" class="hidden text-slate-300 whitespace-pre-wrap font-mono leading-relaxed bg-slate-950/80 p-4 rounded-xl border border-white/[0.06] overflow-x-auto"></pre>
       </div>
 
     </div>
   </div>
 
   <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-indigo-500/40 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-medium translate-y-16 opacity-0 transition-all duration-300 z-50">
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900/95 border border-indigo-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-medium translate-y-16 opacity-0 transition-all duration-300 z-50 backdrop-blur-xl">
     <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
     <span id="toastMsg">복사되었습니다.</span>
   </div>
 
   <!-- Footer -->
-  <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
-    All-to-Markdown &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Pipelines.
+  <footer class="border-t border-white/[0.06] py-5 text-center text-xs text-slate-500">
+    All-to-Markdown Studio &copy; 2026. Microsoft MarkItDown & HWPX Engine. Built for Obsidian & AI Knowledge Pipelines.
   </footer>
 
-  <script src="app.js?v=1.7.1"></script>
+  <script src="app.js?v=1.8.0"></script>
 </body>
 </html>
