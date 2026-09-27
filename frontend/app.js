@@ -230,6 +230,8 @@ function extractFolderId(input) {
   var str = input.trim();
   var match = str.match(/folders\\/([a-zA-Z0-9_-]+)/);
   if (match && match[1]) return match[1];
+  var paramMatch = str.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (paramMatch && paramMatch[1]) return paramMatch[1];
   return str.replace(/['"\\s]/g, "");
 }
 
@@ -237,20 +239,20 @@ function resolveTargetFolder() {
   var raw = (FOLDER_ID || "").trim();
   var cleanId = extractFolderId(raw);
 
-  // 1. 폴더 ID 또는 폴더 URL로 조회 시도
+  // 1. FOLDER_ID를 지정한 경우: 지정된 폴더로 조회 (실패 시 명확한 원인 안내)
   if (cleanId) {
     try {
       return DriveApp.getFolderById(cleanId);
     } catch (e1) {
-      // 2. ID 조회 실패 시 입력값을 폴더 이름으로 검색 시도
       try {
         var byName = DriveApp.getFoldersByName(raw);
         if (byName.hasNext()) return byName.next();
       } catch (e2) {}
+      throw new Error("지정한 폴더 ID/주소 [" + cleanId + "]에 접근할 수 없습니다: " + e1.message + ". 해당 폴더의 공유 권한 및 스크립트 실행 계정을 확인해 주세요.");
     }
   }
 
-  // 3. 비어있거나 찾을 수 없는 경우: 'MarkItDown' 전용 폴더 자동 생성/사용
+  // 2. FOLDER_ID가 비어있는 경우: 'MarkItDown' 기본 폴더 자동 생성/사용
   try {
     var defaultFolders = DriveApp.getFoldersByName("MarkItDown");
     if (defaultFolders.hasNext()) {
@@ -259,7 +261,6 @@ function resolveTargetFolder() {
       return DriveApp.createFolder("MarkItDown");
     }
   } catch (e3) {
-    // 4. 최후의 수단: 내 드라이브 최상위 루트
     return DriveApp.getRootFolder();
   }
 }
