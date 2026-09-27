@@ -1224,11 +1224,14 @@ async function handleFileUpload(fileList) {
     });
 
     if (!response.ok) {
-      throw new Error(`서버 응답 오류: ${response.statusText}`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `서버 응답 오류: ${response.statusText}`);
     }
 
+    const data = await response.json();
+
     let totalChars = 0;
-    data.results.forEach(item => {
+    (data.results || []).forEach(item => {
       convertedItems.unshift(item);
       if (item.success) totalChars += (item.char_count || 0);
     });
